@@ -1,0 +1,54 @@
+# Phase 1 reuse inventory — UNVERIFIED
+
+Source: local `/Users/mc/development/hvacline`, corresponding to
+`waqasraza123/hvacline`. Source inspection and selective extraction only; HVACLine
+was not modified. Destinations below are relative to this repository.
+`backend/` abbreviates `apps/backend/src/dwellcall/`; original backend paths start
+with `apps/backend/src/insurance_operations/`.
+
+| HVACLine source | DwellCall destination | Treatment and reason |
+| --- | --- | --- |
+| `application.py` | `backend/application.py` | Adapted factory, sessionmaker, lifespan, CORS, correlation IDs, validation/error handlers, health/readiness. Removed HVAC, booking, identity, portal and provider routes. |
+| `api.py` | `backend/api.py` | Adapted initialization; removed inbound telephony and WhatsApp setup. |
+| `settings.py` | `backend/settings.py` | Copied PostgreSQL settings, test-target isolation and Neon pooler normalization; retained origin validation. Added private Retell/business configuration; removed unrelated settings. |
+| `errors.py` | `backend/errors.py` | Copied structured errors and correlation response without behavioral replacement. |
+| `database/connection.py` | `backend/database/connection.py` | Copied engine, pooling, direct migration URL, psycopg conversion and readiness; renamed namespace/application name. |
+| `database/models/base.py` | `backend/database/models/base.py` | Copied SQLAlchemy foundation and naming convention. No historical application models imported. |
+| `demo_security.py`; strict `telephony/outbound/routes.py` admin dependency | `backend/admin_security.py` | Adapted constant-time authorization. Removed the general sandbox bypass; operator authorization is always mandatory. |
+| `telephony/webhook_validation.py` | `backend/telephony/webhook_validation.py` | Copied bounded, value-free diagnostic redaction; added Retell field names. This file handles diagnostics, not signature verification. |
+| `telephony/outbound/service.py`; `conversations/service.py` | `backend/telephony/retell/service.py` | Adapted transaction/guard-row locking, active/unknown blocking, daily counting, durable identity and monotonic finalization for private web sessions. Replaced agency ownership with one independent admission guard; no outbound workflow imported. New cost reservation is DwellCall code. |
+| `conversations/local_session.py` | `backend/consultant/graph.py`, `backend/consultant/catalog.py` | Inspected extraction, transcript bounds and draft patterns. New implementation: HVAC intake/Ollama/speech contracts do not supply Retell streaming, LangGraph or rental matching. Pattern references do not count as copied lines. |
+| `telephony/providers/elevenlabs.py`; `telephony/outbound/provider.py` | `backend/telephony/retell/provider.py`, `schemas.py`, `routes.py` | Inspected provider, signing, body bounds and identity patterns. New Retell adapter uses the supported SDK/protocol; ElevenLabs wire formats cannot be reused. No ElevenLabs provider copied. |
+| No property-catalog equivalent (backend searched for rental/property catalog) | `data/properties.json`, `backend/consultant/catalog.py` | New fictional rental catalog and deterministic filters. |
+| `migrations/env.py`, `migrations/script.py.mako`, `alembic.ini` | Same paths | Copied runner/template/configuration; package renamed. No historical revision copied. |
+| Existing model/migration conventions | `backend/database/models/audio_session.py`; `migrations/versions/20261103_0001_private_audio.py` | New minimal guard/session schema and independent root revision, not an HVAC schema clone. |
+| `pyproject.toml`, `.gitignore`, `AGENTS.md` | Same paths | Adapted packaging/dependencies, preserved ignore rules and working agreement. Configuration/scaffolding excluded from code-reuse credit. |
+| `tests/test_api.py`; `tests/database/test_connection_settings.py` | `tests/test_api.py`; `tests/test_connection_settings.py` | Adapted existing liveness/readiness and database configuration specifications. Test code excluded from application-reuse credit. |
+| `tests/database/conftest.py` | `tests/database/test_audio_admission.py` | Inspected first; replaced fixture because source downgrades/truncates shared tables. New opt-in specifications create/drop only a unique test schema on an isolated test target. |
+
+## Deferred equivalents — inspect again before implementation
+
+| Existing HVACLine source | DwellCall decision |
+| --- | --- |
+| `telephony/outbound/{service,routes,settings,schemas}.py` and outbound model | Phase 3: retain consent, allowlist, quota/idempotency reservation, recovery, unknown outcomes and operator controls; adapt provider-specific calls to Retell. Do not import unrelated agency infrastructure. |
+| `apps/web/src/app/{page.tsx,layout.tsx,product.css,styles.css}` | Phase 4: adapt the existing application; no frontend scaffold created in Phase 1. |
+| `apps/web/src/components/{brand.tsx,product-icons.tsx}` | Phase 4: retain useful components, GitHub SVG and header placement. Source header/brand inspected. Link must remain hidden until publication approval. |
+| `apps/web/src/features/outbound-demo/`, `apps/web/src/app/api/outbound-demo/route.ts` | Phase 4: adapt existing form/status/server bridge after Phase 3; inspect full dependency tree then. |
+
+## Actual extraction evidence
+
+Three complete runtime foundation files (`errors.py`, `database/connection.py`,
+`database/models/base.py`) were extracted, plus the complete webhook diagnostic
+helper before its field-name adaptation: **249 original source lines across four
+files**, before changes. Selective source blocks were also extracted from
+`settings.py`, `application.py` and `api.py`. Admin authorization and private
+session admission adapt the inspected original algorithms and working patterns.
+These nine runtime destination modules have source reuse; the Retell protocol,
+adapter/router, graph, rental catalog and minimal session models are new.
+
+No application-wide reuse percentage is claimed. Module counts and source-block
+line counts are not an 80% reuse measurement. The large existing website and
+outbound workflow are intentionally absent from this milestone. A later measured
+report must compare retained applicable source lines with the final application,
+excluding dependencies, generated artifacts, tests, scaffolding and irrelevant
+copied code. Source reuse is not a claim of verified behavior or license clearance.

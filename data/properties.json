@@ -1,0 +1,37 @@
+{
+  "fictional": true,
+  "location": "Austin, TX",
+  "currency": "USD",
+  "properties": [
+    {
+      "id": "rental-cedar-court",
+      "name": "Cedar Court Studio",
+      "neighborhood": "Hyde Park",
+      "monthly_rent": 1550,
+      "bedrooms": 0,
+      "bathrooms": 1,
+      "pets_allowed": false,
+      "features": ["Shared courtyard", "In-unit laundry", "Covered bicycle storage"]
+    },
+    {
+      "id": "rental-willow-flat",
+      "name": "Willow Terrace Flat",
+      "neighborhood": "East Austin",
+      "monthly_rent": 2150,
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "pets_allowed": true,
+      "features": ["Private balcony", "In-unit laundry", "Reserved parking"]
+    },
+    {
+      "id": "rental-limestone-loft",
+      "name": "Limestone Garden Loft",
+      "neighborhood": "Mueller",
+      "monthly_rent": 2850,
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "pets_allowed": true,
+      "features": ["Study nook", "Shared garden", "Two parking spaces"]
+    }
+  ]
+}
