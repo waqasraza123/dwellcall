@@ -10,8 +10,8 @@ Test Audio conversation using three fictional Austin rentals. It has not happene
 The website and outbound workflow remain deferred. Their implementation must
 adapt HVACLine's existing Next.js application and outbound service. No Git history,
 credentials, environment files, historical notes, provider identifiers or hosting
-configuration were imported. The owner has authorized publishing this Phase 1
-source to `waqasraza123/dwellcall`; publication does not verify or activate it.
+configuration were imported. This Phase 1 source is published at the owner's
+request to `waqasraza123/dwellcall`; publication does not verify or activate it.
 
 ## Backend setup — owner execution only
 

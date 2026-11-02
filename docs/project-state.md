@@ -1,14 +1,14 @@
 # DwellCall project state
 
-## Main publication authorized — 2026-11-03 — UNVERIFIED
+## Phase 1 published to main — 2026-11-03 — UNVERIFIED
 
-The owner explicitly requested pushing Phase 1 to `main`. The independent local
-repository is on an unborn `main` branch; origin is `waqasraza123/dwellcall`, whose
-remote repository is public and empty at inspection. Prepare the initial source
-commit and push without force. Exclude ignored `.env`, local session notes and
-machine artifacts. Skip local Git hooks and request CI/deployment skips to honor
-the standing no-verification/no-deployment instruction. No provider configuration,
-migration, service or live conversation is authorized by publication.
+The owner explicitly requested pushing Phase 1 to `main`. Initial independent
+source commit `a5ec75d` was accepted as a new `origin/main` branch in the public
+`waqasraza123/dwellcall` repository, without force. Local `main` tracks
+`origin/main`. The 44-file commit excludes ignored `.env`, local session notes
+and machine artifacts. Git hooks were skipped and the commit requests CI/Render/
+Vercel skips. No verification, migration, service, provider configuration, live
+conversation or deployment command ran; external automation state is unverified.
 
 Implementation/runtime and private Test Audio acceptance remain **UNVERIFIED**.
 
@@ -30,7 +30,7 @@ Implementation/runtime and private Test Audio acceptance remain **UNVERIFIED**.
   No commit, push, deployment/provider edits, SMS or paid calls without explicit
   authorization. Owner commands: `docs/phase-1.md`.
 
-## Local implementation — UNVERIFIED
+## Phase 1 implementation — UNVERIFIED
 
 Selected HVACLine foundation source was extracted and adapted to the `dwellcall`
 package. New source contains private Retell web-call authentication/identity,
@@ -45,5 +45,6 @@ All implementation/runtime behavior, dependencies, automated specifications and
 the first Test Audio conversation remain **UNVERIFIED**. Source inventory and
 actual extraction evidence: `docs/reuse-inventory.md`. No 80% claim is made.
 No source credentials, private notes, Git history or hosting identifiers were
-copied; no license grant or publication is asserted. Next handoff is owner
-dependency/check/schema/provider setup and private audio acceptance.
+copied; no license grant is asserted. Source publication is recorded above;
+next handoff is owner dependency/check/schema/provider setup and private audio
+acceptance.
