@@ -81,3 +81,18 @@ Lead/memory source supplied validation/confirmation/retention patterns rather th
 copied products or unused tables. `docs/crm-setup.md` records setup and owner checks.
 The earlier Phase 1 extraction evidence is unchanged; no 80% or other
 application-wide percentage is claimed. All new behavior remains UNVERIFIED.
+
+## Phase 2 conversation extension — UNVERIFIED
+
+| Inspected source | DwellCall treatment |
+| --- | --- |
+| Existing DwellCall `consultant/catalog.py`, `consultant/graph.py` and Retell router | Adapted in place: scenario-aware prices/filters, comparisons, objection context, call-local revision state and completion/end-call handling. The working graph structure, clients, streaming, authentication and admission remain. Three original rental examples are retained. |
+| HVACLine `conversations/spoken.py` | Copied/adapted its generic `SpokenTurn`, `normalized_speech` and `require_spoken_confirmation` implementation to `backend/consultant/spoken.py`. Changed role/content names, requirement-specific action wording and Unicode token preservation. Excluded the HVAC-specific readback builder; the new property readback includes all current fields and its revision. |
+| HVACLine `conversations/local_session.py` extraction/draft/merge and `conversations/schemas.py` confirmation patterns | Adapted into existing extraction and new `backend/consultant/state.py`. Full snapshots replace the HVAC merge's ignore-null/sticky-hazard behavior because property preferences can be explicitly withdrawn. Only completed streams commit a candidate revision. No HVAC contact/intake fields copied. |
+| HVACLine `leads/service.py` row-version and confirmed-intake patterns | Adapted revision invalidation and current-readback confirmation concepts to one WebSocket's state. No agency/customer database model copied; no new persistence without storage permission. |
+| Existing DwellCall CRM snapshot schema | Reused for compatibility specifications. The confirmed property summary helper omits contacts and all permissions; no automatic CRM authorization/network bridge was added. |
+
+New property scenarios/readback content and fictional purchase/luxury records are
+domain-specific additions. Mocked specifications/documentation are excluded from
+reuse credit. Actual reuse is recorded by source/destination/treatment; 80% remains
+a product target, not a measured result for these early AI-heavy phases.

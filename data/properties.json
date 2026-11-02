@@ -11,7 +11,11 @@
       "bedrooms": 0,
       "bathrooms": 1,
       "pets_allowed": false,
-      "features": ["Shared courtyard", "In-unit laundry", "Covered bicycle storage"]
+      "features": [
+        "Shared courtyard",
+        "In-unit laundry",
+        "Covered bicycle storage"
+      ]
     },
     {
       "id": "rental-willow-flat",
@@ -21,7 +25,11 @@
       "bedrooms": 1,
       "bathrooms": 1,
       "pets_allowed": true,
-      "features": ["Private balcony", "In-unit laundry", "Reserved parking"]
+      "features": [
+        "Private balcony",
+        "In-unit laundry",
+        "Reserved parking"
+      ]
     },
     {
       "id": "rental-limestone-loft",
@@ -31,7 +39,77 @@
       "bedrooms": 2,
       "bathrooms": 2,
       "pets_allowed": true,
-      "features": ["Study nook", "Shared garden", "Two parking spaces"]
+      "features": [
+        "Study nook",
+        "Shared garden",
+        "Two parking spaces"
+      ]
+    },
+    {
+      "id": "purchase-maple-residence",
+      "name": "Maple Courtyard Residence",
+      "neighborhood": "Mueller",
+      "scenarios": [
+        "buying"
+      ],
+      "purchase_price": 550000,
+      "bedrooms": 3,
+      "bathrooms": 2,
+      "features": [
+        "Private garden",
+        "Private study",
+        "Two parking spaces"
+      ]
+    },
+    {
+      "id": "purchase-oak-house",
+      "name": "Oak Terrace House",
+      "neighborhood": "Hyde Park",
+      "scenarios": [
+        "buying"
+      ],
+      "purchase_price": 740000,
+      "bedrooms": 4,
+      "bathrooms": 3,
+      "features": [
+        "Covered patio",
+        "Private garden",
+        "Two parking spaces"
+      ]
+    },
+    {
+      "id": "luxury-juniper-estate",
+      "name": "Juniper Ridge Estate",
+      "neighborhood": "Barton Creek",
+      "scenarios": [
+        "buying",
+        "luxury"
+      ],
+      "purchase_price": 1800000,
+      "bedrooms": 4,
+      "bathrooms": 4,
+      "features": [
+        "Private pool",
+        "Private study",
+        "Three parking spaces"
+      ]
+    },
+    {
+      "id": "luxury-sky-residence",
+      "name": "Terrace Sky Residence",
+      "neighborhood": "Downtown",
+      "scenarios": [
+        "buying",
+        "luxury"
+      ],
+      "purchase_price": 2450000,
+      "bedrooms": 3,
+      "bathrooms": 3.5,
+      "features": [
+        "Roof terrace",
+        "Private elevator",
+        "Two parking spaces"
+      ]
     }
   ]
 }

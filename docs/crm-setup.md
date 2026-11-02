@@ -114,8 +114,10 @@ and identical authorization replay the existing status; changed data/permission 
 that version conflicts. A newer confirmed version cancels pending older versions.
 Uncertain/in-flight outcomes block new versions across destination changes until
 reconciled. Repeated authorization never extends permission expiry or revives sent,
-revoked, failed or uncertain work. The current graph still supports rentals only;
-accepting other scenario names in the CRM schema does not implement Phase 2 voice.
+revoked, failed or uncertain work. Phase 2 now extends the voice graph to all three
+scenarios, with UNVERIFIED per-call readback confirmation. Its summary helper does
+not grant CRM/storage permission, persist the review or call this API automatically.
+See `phase-2.md`; post-call operator confirmation remains required.
 
 ## Worker and real activation
 

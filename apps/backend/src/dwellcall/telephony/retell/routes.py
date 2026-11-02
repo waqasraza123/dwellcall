@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import secrets
-from contextlib import suppress
+from contextlib import aclosing, suppress
 from datetime import UTC, datetime
 from typing import Annotated
 
@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session, sessionmaker
 from starlette.concurrency import run_in_threadpool
 
 from dwellcall.admin_security import require_admin_token
-from dwellcall.consultant.graph import RentalConsultant
+from dwellcall.consultant.graph import PropertyConsultant
+from dwellcall.consultant.state import ConsultationSession
 from dwellcall.errors import ApiError
 from dwellcall.settings import ApiSettings
 from dwellcall.telephony.retell.provider import RetellGateway
@@ -47,7 +48,7 @@ def create_retell_router(
     settings: ApiSettings,
     sessions: sessionmaker[Session],
     gateway: RetellGateway,
-    consultant: RentalConsultant,
+    consultant: PropertyConsultant,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/v1/retell")
     service = AudioSessionService(sessions, settings)
@@ -130,6 +131,7 @@ def create_retell_router(
         last_response_id = -1
         user_transcript: tuple[str, ...] = ()
         response_count = 0
+        conversation = ConsultationSession()
 
         async def send(response: Response) -> None:
             async with send_lock:
@@ -137,8 +139,10 @@ def create_retell_router(
 
         async def respond(event: ResponseRequired) -> None:
             try:
-                async with asyncio.timeout(25):
-                    async for content in consultant.stream(event.transcript):
+                async with asyncio.timeout(25), aclosing(
+                    consultant.stream(event.transcript, conversation)
+                ) as stream:
+                    async for content in stream:
                         if event.response_id != last_response_id:
                             return
                         await send(Response(
@@ -147,6 +151,7 @@ def create_retell_router(
                         ))
                     await send(Response(
                         response_id=event.response_id, content="", content_complete=True,
+                        end_call=conversation.end_call,
                     ))
             except asyncio.CancelledError:
                 raise
@@ -178,12 +183,7 @@ def create_retell_router(
             await websocket.send_json(ConfigResponse().model_dump())
             await send(Response(
                 response_id=0,
-                content=(
-                    f"Hi, I'm {settings.business_name}'s AI property consultant. "
-                    "We're exploring fictional rental homes in "
-                    f"{settings.supported_location}. "
-                    "What monthly budget and number of bedrooms do you have in mind?"
-                ),
+                content=consultant.greeting(),
                 content_complete=True,
             ))
             try:

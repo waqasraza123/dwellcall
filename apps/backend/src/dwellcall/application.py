@@ -14,7 +14,7 @@ from starlette.middleware.base import RequestResponseEndpoint
 from starlette.middleware.cors import CORSMiddleware
 
 from dwellcall.consultant.catalog import load_catalog
-from dwellcall.consultant.graph import RentalConsultant
+from dwellcall.consultant.graph import PropertyConsultant
 from dwellcall.crm.routes import create_crm_router
 from dwellcall.crm.settings import CrmSettings
 from dwellcall.database.connection import DatabaseReadinessError, check_database_readiness
@@ -44,7 +44,7 @@ def create_app(
     )
     gateway = RetellGateway(settings) if settings.retell_test_audio_enabled else None
     consultant = (
-        RentalConsultant(settings, load_catalog(settings))
+        PropertyConsultant(settings, load_catalog(settings))
         if settings.retell_test_audio_enabled else None
     )
 

@@ -153,7 +153,7 @@ deploy, provision a database or initiate any paid session.
 
 The owner opens the dedicated agent's **Test Audio** tab, grants microphone access
 and starts one private web conversation. The expected flow is AI/fictional-data
-disclosure, then budget/bedroom collection. For “one bedroom under 2,300 a month,
+disclosure, scenario selection, then budget/bedroom collection. For “one bedroom under 2,300 a month,
 with my dog,” the only matching example is Willow Terrace Flat at USD 2,150.
 For “two bedrooms under 2,000,” the agent must explain that none match and ask
 which constraint the caller wants to change. Interrupt a response and confirm the

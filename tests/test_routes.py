@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from dwellcall.consultant.graph import RentalConsultant
+from dwellcall.consultant.graph import PropertyConsultant
 from dwellcall.errors import ApiError, api_error_handler
 from dwellcall.settings import ApiSettings
 from dwellcall.telephony.retell import routes
@@ -20,7 +20,7 @@ from dwellcall.telephony.retell.service import AudioSessionService
 
 def application(
     monkeypatch: pytest.MonkeyPatch, settings: ApiSettings,
-    consultant: RentalConsultant,
+    consultant: PropertyConsultant,
 ) -> tuple[FastAPI, Mock, Mock]:
     gateway = Mock(spec=RetellGateway)
     gateway.authorize = AsyncMock(return_value=RetellCall(
@@ -41,7 +41,7 @@ def application(
 def test_bad_websocket_secret_fails_before_provider_and_reservation(
     monkeypatch: pytest.MonkeyPatch, settings: ApiSettings,
 ) -> None:
-    app, gateway, service = application(monkeypatch, settings, Mock(spec=RentalConsultant))
+    app, gateway, service = application(monkeypatch, settings, Mock(spec=PropertyConsultant))
     with TestClient(app) as client:
         with pytest.raises(WebSocketDisconnect):
             with client.websocket_connect("/api/v1/retell/llm/invalid/call_private"):
@@ -55,7 +55,10 @@ def test_new_response_cancels_old_stream_and_preserves_request_identity(
 ) -> None:
     cancelled = threading.Event()
     class Consultant:
-        async def stream(self, transcript: object) -> AsyncIterator[str]:
+        def greeting(self) -> str:
+            return "A fictional property demonstration"
+
+        async def stream(self, transcript: object, session: object) -> AsyncIterator[str]:
             if not transcript:
                 yield "first"
                 try:
@@ -88,7 +91,34 @@ def test_new_response_cancels_old_stream_and_preserves_request_identity(
 def test_operator_refresh_requires_authentication(
     monkeypatch: pytest.MonkeyPatch, settings: ApiSettings,
 ) -> None:
-    app, gateway, _ = application(monkeypatch, settings, Mock(spec=RentalConsultant))
+    app, gateway, _ = application(monkeypatch, settings, Mock(spec=PropertyConsultant))
     with TestClient(app) as client:
         assert client.post("/api/v1/retell/admin/calls/call_private/refresh").status_code == 401
     gateway.retrieve.assert_not_called()
+
+
+def test_completed_closing_turn_sets_retell_end_call_without_releasing_reservation(
+    monkeypatch: pytest.MonkeyPatch, settings: ApiSettings,
+) -> None:
+    class Consultant:
+        def greeting(self) -> str:
+            return "A fictional property demonstration"
+
+        async def stream(self, transcript, session):
+            yield "Goodbye."
+            session.end_call = True
+
+    app, _, service = application(monkeypatch, settings, Consultant())
+    with TestClient(app) as client:
+        with client.websocket_connect(f"/api/v1/retell/llm/{'a' * 43}/call_private") as socket:
+            socket.receive_json()
+            socket.receive_json()
+            socket.send_json({
+                "interaction_type": "response_required", "response_id": 1,
+                "transcript": [{"role": "user", "content": "Goodbye"}],
+            })
+            assert socket.receive_json()["content"] == "Goodbye."
+            final = socket.receive_json()
+            assert final["content_complete"] is True and final["end_call"] is True
+    service.finalize.assert_not_called()
+    service.disconnect.assert_called_once_with("call_private")

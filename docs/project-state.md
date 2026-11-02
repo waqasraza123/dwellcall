@@ -1,11 +1,32 @@
 # DwellCall project state
 
-## Phase 2 implementation and publication authorized — 2026-11-03
+## Phase 2 source implementation — UNVERIFIED — 2026-11-03
 
-The owner requests implementing Phase 2 and committing/pushing current code to
-`main`. Publish the existing optional CRM source first, then the conversation
-extension. This permits Git publication, not verification, migrations, services,
-provider edits or live activation. All runtime behavior remains UNVERIFIED.
+The owner explicitly requested implementation plus commit/push to `main`. Existing
+CRM source was published first as `4cf913f`; GitHub accepted `de121d4..4cf913f`
+without force. This authorization also covers publication of the Phase 2 source.
+It does not authorize verification, migrations, services, provider edits or activation.
+
+Existing graph/catalog/router source is extended in place for Renting, Buying and
+Luxury; the three original rentals remain alongside four fictional purchase/luxury
+examples. One configurable consultant uses deterministic scenario/budget/feature
+filters, comparison mismatch flags and objection/follow-up context. Call-local
+revision state invalidates prior confirmation on corrections. Adapted HVACLine's
+actual generic spoken-confirmation helper, with current full readbacks and separate
+caller replies. Stream cancellation does not commit unfinished candidate state.
+Explicit closing phrases bypass the LLM and set the final Retell end-call flag.
+
+Confirmed summary preparation omits contacts and storage/CRM permission. State stays
+in memory per socket; there is no new transcript/summary archive, database migration
+or automatic export bridge. Human transfer remains unavailable. All real activation
+and the existing admission/duration limits remain unchanged.
+
+New/updated specifications cover scenario matching, comparisons, configurable data,
+state isolation, cancellation, current/stale/partial readback and closing. None ran.
+No installs, checks, migrations, services, live model/Retell/FUB activity or deployment
+commands ran. `.env`, ignored local notes and HVACLine are excluded from publication.
+Runtime behavior remains UNVERIFIED. Exact owner checks: `docs/phase-2.md`;
+CRM setup remains `docs/crm-setup.md`. Source reuse is recorded without a percentage.
 
 ## Optional CRM source implemented — UNVERIFIED — 2026-11-03
 
@@ -32,8 +53,8 @@ versions/destinations/withdrawn permissions cannot silently requeue or reroute.
 Personal payloads expire through owner-run maintenance; no automatic TTL is claimed.
 
 The real `.env` and HVACLine remain untouched. No installs, tests/builds/verification,
-migrations, services, API writes, provider edits, commits, pushes or deployments
-ran. Runtime, migration and mocked integration remain UNVERIFIED. Next owner steps:
+migrations, services, API writes or provider edits ran during implementation.
+The later authorized CRM publication is recorded above. Runtime, migration and mocked integration remain UNVERIFIED. Next owner steps:
 `docs/crm-setup.md` and core acceptance in `docs/phase-1.md`. No live CRM approval
 has been granted. This CRM exception does not authorize unrelated integrations.
 

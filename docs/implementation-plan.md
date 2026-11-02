@@ -14,7 +14,7 @@ hosting. Every unexecuted change remains **UNVERIFIED**.
 | Phase | Work and acceptance |
 | --- | --- |
 | 1 — Foundation | Adapt HVACLine FastAPI/settings/errors/Neon/security. Add the minimum Retell Custom LLM adapter and rental graph. Current source is published but UNVERIFIED. Exit: owner reports working private Test Audio with three fictional rentals, authentication/identity, interruption and duration/admission acceptance. See `phase-1.md`. |
-| 2 — Conversation | Extend one configurable consultant to Renting, Buying and Luxury, confirmed requirement updates, comparisons, objections and natural closing. Business/catalog/location changes require configuration, not source edits. No RAG, vector database, MLS or multi-agent architecture. |
+| 2 — Conversation, implementation UNVERIFIED | Existing graph/catalog extended to Renting, Buying and Luxury, call-local requirement revisions, readback confirmation, comparisons, objections and natural closing. Configurable identity/catalog/location; no extra service or database migration. Owner checks and limitations: `phase-2.md`. |
 | Optional CRM — implementation UNVERIFIED | The owner subsequently requested implementation before core acceptance was reported. Provider interface/no-op/FUB adapter, durable export workflow and executable mocked specifications are now written using the inspected source patterns. Keep real synchronization disabled until core acceptance, separate owner approval, automation validation and explicit permission for each confirmed snapshot. CRM does not block standalone voice or other phases. See `crm-setup.md`. |
 | 3 — Outbound | Adapt HVACLine's consent, allowlists, quota reservations, idempotency, recovery, concurrency, webhook deduplication, unknown outcomes and operator controls. Replace provider-specific calling with Retell. Optional future authorized Telnyx verification and fixed-destination transfer after explicit caller confirmation. Outbound/transfers stay off pending separately approved live acceptance. |
 | 4 — Website | Adapt the existing Next.js layout, CSS, components, outbound form, recovery and API bridge. Ivory/charcoal/bronze, serif headlines and property imagery. AI disclosure, verification and explicit calling consent. Preserve the existing GitHub SVG/header pattern; source publication does not activate calling or CRM. |
@@ -29,9 +29,10 @@ booking, bidirectional sync or unrelated services.
 Do not run tests, builds, lint/format/type checks, readiness probes, migrations or
 other verification commands without specific owner authorization. Do not write to
 external APIs, commit, push or deploy without a new applicable authorization.
-Earlier authorization to publish Phase 1 does not authorize this CRM change.
+The owner subsequently authorized committing/pushing the current CRM and Phase 2
+source to `main`; that request does not authorize verification or live activation.
 Preserve the ignored `.env`; never import HVACLine secrets or historical notes.
 
-Next: owner executes/reports Phase 1 acceptance and the checks in `crm-setup.md`.
+Next: owner executes/reports core acceptance and checks in `phase-2.md` and `crm-setup.md`.
 CRM source and executable mock specifications remain UNVERIFIED; the new migration
 is unapplied. No real connection, worker schedule or live synchronization is active.

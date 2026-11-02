@@ -2,9 +2,9 @@
 
 Your AI Property Consultant. The right place starts with a conversation.
 
-**Phase 1 implementation — UNVERIFIED.** This directory contains an extracted
-HVACLine FastAPI foundation and the minimum new Retell Custom LLM + LangGraph
-rental consultant. The first acceptance milestone is an owner-run private Retell
+**Phase 1 and Phase 2 implementation — UNVERIFIED.** This directory contains an
+extracted HVACLine FastAPI foundation and one Retell + LangGraph property consultant
+for Renting, Buying and Luxury. The first acceptance milestone is owner-run Retell
 Test Audio conversation using three fictional Austin rentals. It has not happened.
 
 The website and outbound workflow remain deferred. Their implementation must
@@ -40,10 +40,11 @@ Change `BUSINESS_NAME`, `SUPPORTED_LOCATION`, `CURRENCY`, `PERSONALITY`,
 `LLM_MODEL` and `PROPERTY_CATALOG_PATH` in `.env`. The catalog's location and
 currency must match. Run from the repository root, or use an absolute catalog path.
 [data/properties.json](data/properties.json) is replaceable and contains only
-fictional rentals. `PropertyCatalog` in
+fictional rental, purchase and luxury examples. `PropertyCatalog` in
 [catalog.py](apps/backend/src/dwellcall/consultant/catalog.py) is its runtime schema.
-Buying, Luxury, persistent requirement updates and richer objection/comparison
-flows are Phase 2 work.
+The existing graph now includes per-call revisions, spoken readback confirmation,
+comparison/objection context and natural closing. State stays in memory; confirming
+requirements never grants CRM/storage permission. See [Phase 2 and owner checks](docs/phase-2.md).
 
 ## Boundaries
 
