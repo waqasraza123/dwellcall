@@ -52,3 +52,32 @@ outbound workflow are intentionally absent from this milestone. A later measured
 report must compare retained applicable source lines with the final application,
 excluding dependencies, generated artifacts, tests, scaffolding and irrelevant
 copied code. Source reuse is not a claim of verified behavior or license clearance.
+
+## Optional CRM implementation — UNVERIFIED
+
+The owner subsequently requested implementation while core voice acceptance is
+pending. Real sync stays disabled. These original equivalents were inspected
+without modifying HVACLine; paths below distinguish source reuse from new code:
+
+| Original source | Actual DwellCall destination and treatment |
+| --- | --- |
+| `conversations/contracts.py` | `backend/crm/contracts.py`: adapt provider protocol and typed immutable metadata/result pattern. |
+| `conversations/service.py::confirm_intake`; `leads/{schemas,service}.py`; `database/models/lead.py` | Minimal confirmed consultation/lead snapshot and `backend/crm/service.py`: reuse validation, transaction, summary, ownership and row-version patterns. Remove booking/HVAC/agency dependencies. |
+| `customer_memory/service.py` consent and summary sections | Confirmation/export consent and bounded authorized-summary patterns; no memory-product copy and no reuse of memory permission as CRM permission. |
+| `database/models/operations.py`; intake/lead replay helpers | Local export unique scope, fingerprint, conflict/replay and audit patterns; adapt to independent minimal models. |
+| `notifications/booking.py`; `database/models/booking_integrations.py`; `booking_jobs.py`; `worker.py`; `job_execution.py` | `backend/crm/jobs.py` and minimal durable export rows: adapt enqueue, bounded processing, locks and deadlines. Replace provider-specific retry assumptions with FUB-safe unknown-result handling. |
+| Already adapted DwellCall foundation | Reuse settings, FastAPI/API errors, operator authorization and Neon connection/model base directly. |
+| No HVACLine native CRM/FUB module found | New `backend/crm/providers/{none,followupboss}.py`; FUB authentication/event mapping and typed delivery states need provider-specific code. |
+
+| Additional source | Actual extraction |
+| --- | --- |
+| `job_execution.py` | Copied the complete runtime module to `backend/crm/job_execution.py`; changed namespace/service name and disabled environment proxy inheritance/redirects in clients. Deadlines, transport budgeting, statement limits and bounded engine configuration were retained. |
+| `notifications/booking.py`, `booking_jobs.py`, `worker.py` | Adapted enqueue/job-batch/advisory-lock/deadline/CLI structure into `backend/crm/{service,jobs}.py`. FUB ambiguity, fencing and cross-batch rate-delay rules are new. No calendar/email/HVAC workflow copied. |
+| Existing DwellCall database fixture | Moved to `tests/database/conftest.py`, added CRM dispatch-state initialization and reused for new concurrency/workflow specifications. Test code receives no application-reuse credit. |
+
+Confirmed-snapshot fields and consent scope, CRM models/migration, provider mapping,
+mocked specifications and sample payload are new domain-specific implementation.
+Lead/memory source supplied validation/confirmation/retention patterns rather than
+copied products or unused tables. `docs/crm-setup.md` records setup and owner checks.
+The earlier Phase 1 extraction evidence is unchanged; no 80% or other
+application-wide percentage is claimed. All new behavior remains UNVERIFIED.

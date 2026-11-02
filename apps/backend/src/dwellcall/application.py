@@ -8,12 +8,15 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.middleware.cors import CORSMiddleware
 
 from dwellcall.consultant.catalog import load_catalog
 from dwellcall.consultant.graph import RentalConsultant
+from dwellcall.crm.routes import create_crm_router
+from dwellcall.crm.settings import CrmSettings
 from dwellcall.database.connection import DatabaseReadinessError, check_database_readiness
 from dwellcall.errors import ApiError, api_error_handler
 from dwellcall.settings import ApiSettings
@@ -31,7 +34,11 @@ class ReadinessResponse(HealthResponse):
     database: Literal["ready"]
 
 
-def create_app(settings: ApiSettings, database_engine: Engine) -> FastAPI:
+def create_app(
+    settings: ApiSettings,
+    database_engine: Engine,
+    crm_settings: CrmSettings | None = None,
+) -> FastAPI:
     session_factory = sessionmaker(
         bind=database_engine, class_=Session, expire_on_commit=False,
     )
@@ -64,6 +71,13 @@ def create_app(settings: ApiSettings, database_engine: Engine) -> FastAPI:
         allow_headers=["Content-Type", "X-Correlation-ID", "X-Admin-Token"],
         expose_headers=["X-Correlation-ID"],
     )
+    crm = crm_settings or CrmSettings(
+        app_environment=settings.app_environment, business_name=settings.business_name,
+    )
+    if crm.crm_provider != "none":
+        if settings.admin_token is None or len(settings.admin_token.get_secret_value()) < 32:
+            raise ValueError("CRM administration requires a strong ADMIN_TOKEN")
+        application.include_router(create_crm_router(settings, session_factory, crm))
     if gateway is not None and consultant is not None:
         application.include_router(
             create_retell_router(settings, session_factory, gateway, consultant)
@@ -95,6 +109,15 @@ def create_app(settings: ApiSettings, database_engine: Engine) -> FastAPI:
             details={"fields": field_errors},
         )
         return await api_error_handler(request, validation_error)
+
+    @application.exception_handler(SQLAlchemyError)
+    async def database_error_handler(
+        request: Request, error: SQLAlchemyError,
+    ) -> JSONResponse:
+        return await api_error_handler(request, ApiError(
+            status_code=503, code="DATABASE_UNAVAILABLE",
+            message="The operation is unavailable; existing work is retained",
+        ))
 
     @application.middleware("http")
     async def add_correlation_id(

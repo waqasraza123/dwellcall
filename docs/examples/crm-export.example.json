@@ -1,0 +1,24 @@
+{
+  "call_id": "call_REPLACE_WITH_FINALIZED_CONSULTATION",
+  "snapshot_version": 1,
+  "destination": "0000000000000000000000000000000000000000000000000000000000000000",
+  "business_name": "DwellCall",
+  "snapshot": {
+    "contact": {
+      "first_name": "Demo",
+      "last_name": "Visitor",
+      "email": "visitor@example.com"
+    },
+    "scenario": "renting",
+    "budget": {"amount": "2300.00", "currency": "USD", "period": "monthly"},
+    "location": "Austin, TX",
+    "requirements": ["One bedroom", "Pets allowed"],
+    "summary": "Confirmed discussion of fictional rental examples. No showing was scheduled.",
+    "fictional_properties": true
+  },
+  "details_confirmed": true,
+  "storage_permission": true,
+  "crm_permission": true,
+  "consent_version": "dwellcall-crm-v1",
+  "permission_reference": "REPLACE_WITH_OPAQUE_PERMISSION_EVIDENCE"
+}

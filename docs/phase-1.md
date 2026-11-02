@@ -88,6 +88,9 @@ python -m alembic current
 ```
 
 No migrations have been run. Downgrade refuses to erase stored admission evidence.
+The subsequent optional CRM implementation adds unapplied revision `20261103_0002`.
+Review it in `crm-setup.md` before running `upgrade head`, which now includes both
+revisions. CRM defaults off and does not require those extra tables for core voice.
 
 ## Private Retell setup — owner-controlled configuration
 

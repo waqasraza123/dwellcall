@@ -1,43 +1,12 @@
-import os
 import threading
-from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
-from uuid import uuid4
 
 import pytest
 from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.schema import CreateSchema, DropSchema
 
-from dwellcall.database.connection import create_database_engine
-from dwellcall.database.models import AudioAdmissionGuard, Base
 from dwellcall.errors import ApiError
-from dwellcall.settings import ApiSettings, DatabaseConnectionSettings
+from dwellcall.settings import ApiSettings
 from dwellcall.telephony.retell.service import AudioSessionService
-
-
-@pytest.fixture
-def sessions() -> Iterator[sessionmaker[Session]]:
-    url = os.environ.get("DWELLCALL_TEST_DATABASE_URL")
-    if not url:
-        pytest.skip("Owner must supply a separate DWELLCALL_TEST_DATABASE_URL")
-    configuration = DatabaseConnectionSettings(
-        _env_file=".env", app_environment="test", test_database_url=url,
-    )
-    engine = create_database_engine(configuration, service_name="admission-tests")
-    schema = f"dwellcall_test_{uuid4().hex}"
-    with engine.begin() as connection:
-        connection.execute(CreateSchema(schema))
-    isolated = engine.execution_options(schema_translate_map={None: schema})
-    try:
-        Base.metadata.create_all(isolated)
-        factory = sessionmaker(bind=isolated, expire_on_commit=False)
-        with factory() as session, session.begin():
-            session.add(AudioAdmissionGuard(id=1))
-        yield factory
-    finally:
-        with engine.begin() as connection:
-            connection.execute(DropSchema(schema, cascade=True))
-        engine.dispose()
 
 
 def test_two_workers_cannot_both_reserve(

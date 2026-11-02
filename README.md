@@ -59,3 +59,13 @@ The first private audio milestone, dependency compatibility and all automated
 checks remain **UNVERIFIED**. See [reuse inventory](docs/reuse-inventory.md),
 [project state](docs/project-state.md) and [owner runbook](docs/phase-1.md).
 Public release, license approval and Render/Vercel setup are later phases.
+
+## Optional CRM — UNVERIFIED
+
+[The implementation plan](docs/implementation-plan.md) now includes an optional
+[Follow Up Boss integration](docs/follow-up-boss.md). The owner subsequently requested
+implementation: provider contracts, adapter, durable backend workflow and mocked
+specifications are written but unexecuted. It defaults to `CRM_PROVIDER=none` and
+requires separate confirmation/data permission. Real dispatch remains disabled
+pending core acceptance, owner approval and automation validation. No CRM network
+work runs in the voice graph. See [setup and exact owner commands](docs/crm-setup.md).
