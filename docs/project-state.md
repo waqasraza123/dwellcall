@@ -1,109 +1,91 @@
 # DwellCall project state
 
-## Phase 2 source implementation — UNVERIFIED — 2026-11-03
+## Current mission — 2026-11-03
 
-The owner explicitly requested implementation plus commit/push to `main`. Existing
-CRM source was published first as `4cf913f`; GitHub accepted `de121d4..4cf913f`
-without force. This authorization also covers publication of the Phase 2 source.
-It does not authorize verification, migrations, services, provider edits or activation.
+The owner replaced the voice-first roadmap with **DwellCall — AI Real Estate Lead
+Intelligence**. The owner now authorizes Phase 2 implementation. GoHighLevel is
+the primary listing-agent CRM; Follow Up Boss and Retell remain optional, disabled by default. No autonomous
+outreach. The 80% applicable-code reuse goal remains a target, not a measured result.
 
-Existing graph/catalog/router source is extended in place for Renting, Buying and
-Luxury; the three original rentals remain alongside four fictional purchase/luxury
-examples. One configurable consultant uses deterministic scenario/budget/feature
-filters, comparison mismatch flags and objection/follow-up context. Call-local
-revision state invalidates prior confirmation on corrections. Adapted HVACLine's
-actual generic spoken-confirmation helper, with current full readbacks and separate
-caller replies. Stream cancellation does not commit unfinished candidate state.
-Explicit closing phrases bypass the LLM and set the final Retell end-call flag.
+## Phase 1 source delivered — UNVERIFIED
 
-Confirmed summary preparation omits contacts and storage/CRM permission. State stays
-in memory per socket; there is no new transcript/summary archive, database migration
-or automatic export bridge. Human transfer remains unavailable. All real activation
-and the existing admission/duration limits remain unchanged.
+- Existing FastAPI/configuration/errors/Neon/SQLAlchemy/security/job-budget code is
+  reused. HVACLine equivalents were inspected read-only; no source checkout edits.
+- New source defines source permission registry, import runs, listing observations/
+  revisions, agent identities, many-to-many relationships, contact provenance,
+  review decisions and minimal audit evidence. Migrations `20261103_0003` and
+  `20261103_0004` are unapplied.
+- Synthetic CSV/JSON provider, bounded local CLI and authenticated operator APIs
+  implement normalization, replay protection, deterministic deduplication/updates,
+  global transaction locking, daily admission limits and persisted run/checkpoint
+  evidence. No LLM/provider HTTP requests are part of ingestion.
+- Stable listing/agent IDs and approved authority evidence govern matches.
+  Address-only and conflicting identities require review. Office phones/names
+  cannot merge people. Missing fields/contacts remain unknown. Demo verification
+  is labeled synthetic and never presented as actual verification.
+- Permissions, role masking, retention-aware reads, suppression and bounded
+  owner-run deletion are implemented in source. Weak agents remain local with no
+  contact activation until explicit evidence-scoped review. Durable local/strong
+  identity and suppression-only alias hashes survive purge and reimports; they
+  cannot authorize merges or unsuppression. Runtime acceptance is pending.
+- Admin-only review inspection/immutable approval/rejection reuse existing API
+  authorization, Neon transactions and ingestion/row locks. New-UUID reimport
+  applies approved scoped associations without reassigning global IDs. Audit and
+  decision evidence persist; source-retention cleanup redacts review payloads.
+  Synthetic/weak/unresolved identities remain ineligible. Phase 2 adds live-agent
+  eligibility checks and gated durable dispatch below.
+- Optional voice imports are lazy behind its existing disabled flag. FUB remains
+  consultation-only. `CRM_PROVIDER=none|gohighlevel|followupboss`, default none;
+  optional approved GHL auto-queue reserves live-agent jobs during imports.
+- Synthetic examples and unexecuted unit/API/isolated-PostgreSQL specifications
+  are written. Exact owner commands and limitations: `docs/listing-ingestion.md`.
 
-New/updated specifications cover scenario matching, comparisons, configurable data,
-state isolation, cancellation, current/stale/partial readback and closing. None ran.
-No installs, checks, migrations, services, live model/Retell/FUB activity or deployment
-commands ran. `.env`, ignored local notes and HVACLine are excluded from publication.
-Runtime behavior remains UNVERIFIED. Exact owner checks: `docs/phase-2.md`;
-CRM setup remains `docs/crm-setup.md`. Source reuse is recorded without a percentage.
+No tests/builds/lint/format/type checks, verification, installs, migrations,
+connections/imports, services, provider writes/configuration, commits/pushes or
+deployments were executed for this step. Existing `.env` is preserved; the owner
+reports URLs already supplied. All runtime/migration/compatibility behavior remains
+**UNVERIFIED** pending owner results.
 
-## Optional CRM source implemented — UNVERIFIED — 2026-11-03
+## Deferred
 
-The owner subsequently instructed “proceed to implementation.” Source now includes
-an optional typed provider/no-op/FUB adapter, confirmed snapshot/permission API,
-durable Neon export workflow, bounded worker, operator reconciliation and mocked
-unit/database specifications. Core voice acceptance is still pending. Real sync
-remains gated by default `CRM_PROVIDER=none`, sync off, explicit owner/core/automation
-attestations and separate caller data/storage permission per confirmed snapshot.
+Phase 3: actual authorized feed connectors, structured AI where useful, broader
+identity repair, permitted enrichment and bounded scheduling/checkpoints/backoff.
+Phase 4: adapt HVACLine's actual Next.js frontend; DwellCall has no web app yet.
+Phase 5: owner acceptance, source/privacy/license review and independent release.
+Portal APIs/MLS/RESO are not integrated or operational. Poll settings are inactive.
+No outreach, paid resources or external acceptance is inferred.
 
-Inspected HVACLine provider/lead/confirmation/summary/consent/idempotency/job
-implementations before adaptation. Extracted its complete `job_execution.py` and
-retained deadline/engine/transport behavior, with DwellCall namespace and stricter
-client defaults. Reused transaction/replay, bounded job/advisory-lock and consent
-patterns without copying agency/booking/email products. FUB-specific mapping and
-safe uncertain outcomes are new. No unsupported reuse percentage is claimed.
+## Existing source history and restrictions
 
-New unapplied revision `20261103_0002` adds CRM export/audit/throttle tables.
-The default API does not require them. CRM performs no network work in the live
-Retell graph. Only a post-call operator-authorized snapshot can enqueue. Unknown
-submissions/crashed sending attempts are held; rate-limit delays and credential
-pauses persist, with audited operator resume; old
-versions/destinations/withdrawn permissions cannot silently requeue or reroute.
-Personal payloads expire through owner-run maintenance; no automatic TTL is claimed.
+Earlier owner-authorized source publications: `a5ec75d`, `de121d4`, `4cf913f`,
+`afde1e3` on `main`. Earlier consultant/CRM behavior remains UNVERIFIED. That
+publication approval does not authorize publishing this new product work.
+Codex must not execute verification/services/migrations or publish/activate without
+the owner's specific applicable instruction. Preserve independent Neon/credentials/
+hosting and HVACLine. Detailed actual reuse: `docs/reuse-inventory.md`.
 
-The real `.env` and HVACLine remain untouched. No installs, tests/builds/verification,
-migrations, services, API writes or provider edits ran during implementation.
-The later authorized CRM publication is recorded above. Runtime, migration and mocked integration remain UNVERIFIED. Next owner steps:
-`docs/crm-setup.md` and core acceptance in `docs/phase-1.md`. No live CRM approval
-has been granted. This CRM exception does not authorize unrelated integrations.
+## Phase 2 source delivered — UNVERIFIED
 
-## Phase 1 published to main — 2026-11-03 — UNVERIFIED
+- GHL API v2 PIT/location adapter: conservative contact search/create/update,
+  additive tags, owned fields, property/source references and optional qualified
+  opportunities. Existing unowned matches require explicit operator binding.
+- Agent-specific mappings/jobs/audits (unapplied revision 0005) reuse existing
+  Neon/session/locking/budget/client/worker CLI. Reservations commit before HTTP;
+  uncertain writes require lookup, with no blind creation replay. Throttle/auth
+  pause/attempt fencing/recovery and retained mapping evidence persist.
+- Admin APIs expose setup/read-scope discovery, eligibility preview, queue/history/
+  audits, bounded processing, safe retries, reconciliation and contact binding.
+  Existing field mappings are discovered/validated; setup creates no remote fields.
+  Optional location creation requires agency scope, owner/plan attestation and a
+  durable pre-call reservation; uncertain provisioning is never auto-retried.
+- Permission-scoped local live file imports now accept explicit synthetic=false
+  separately from synthetic sources; no feed connector or verifier was added.
+  Synthetic, weak, suppressed, shared/unverified contacts and unresolved/rejected
+  reviews cannot export. Send-time checks serialize with identity/source changes.
+- Default gates remain off; no environment/credential edits, live provider calls,
+  tests/checks/services/migrations/publication executed. Mocked and isolated-DB
+  specifications are written, not run. Commands/operational limits: docs/gohighlevel.md.
 
-The owner explicitly requested pushing Phase 1 to `main`. Initial independent
-source commit `a5ec75d` was accepted as a new `origin/main` branch in the public
-`waqasraza123/dwellcall` repository, without force. Local `main` tracks
-`origin/main`. The 44-file commit excludes ignored `.env`, local session notes
-and machine artifacts. Git hooks were skipped and the commit requests CI/Render/
-Vercel skips. No verification, migration, service, provider configuration, live
-conversation or deployment command ran; external automation state is unverified.
-
-Implementation/runtime and private Test Audio acceptance remain **UNVERIFIED**.
-
-## Owner decisions — 2026-11-03
-
-- Start with Phase 1 only, using applicable code from `waqasraza123/hvacline`.
-  Preserve HVACLine; keep database, credentials, configuration and eventual Git
-  history/hosting independent. Target 80% applicable-code reuse across the product,
-  without copying irrelevant code or claiming an unsupported percentage.
-- Keep Neon and adapt the existing FastAPI architecture. First milestone: private
-  Retell Test Audio with three fictional rentals and one minimal LangGraph agent.
-- Phase 2 expands intelligence; Phase 3 adapts existing outbound protections;
-  Phase 4 adapts the existing Next.js website. No website rebuild, public callback,
-  outbound dialing, SMS, transfer or publishing in Phase 1.
-- Preserve one active/unresolved call, <=180 seconds, quotas, consent/allowlists for
-  future telephone calling, spending admission and disabled transfers. No RAG,
-  vector database, MLS or multi-agent architecture. The optional Follow Up Boss
-  exception is scoped above; other CRM work remains excluded.
-- Codex must not run verification commands, services, migrations or live tests.
-  No commit, push, deployment/provider edits, SMS or paid calls without explicit
-  authorization. Owner commands: `docs/phase-1.md`.
-
-## Phase 1 implementation — UNVERIFIED
-
-Selected HVACLine foundation source was extracted and adapted to the `dwellcall`
-package. New source contains private Retell web-call authentication/identity,
-typed streaming protocol, bounded interruption handling, signed final events,
-serialized Neon admission and a minimal graph over three fictional Austin rentals.
-Fresh root migration `20261103_0001` is written, unapplied. Private audio defaults
-off. The owner reports database URLs supplied in the ignored DwellCall `.env`.
-Database connectivity, schema and resource independence remain UNVERIFIED;
-no database connection or provider provisioning was performed by Codex.
-
-All implementation/runtime behavior, dependencies, automated specifications and
-the first Test Audio conversation remain **UNVERIFIED**. Source inventory and
-actual extraction evidence: `docs/reuse-inventory.md`. No 80% claim is made.
-No source credentials, private notes, Git history or hosting identifiers were
-copied; no license grant is asserted. Source publication is recorded above;
-next handoff is owner dependency/check/schema/provider setup and private audio
-acceptance.
+The owner explicitly authorized committing and pushing the pending Phase 1/2
+source to `main`. This publication does not authorize checks, migrations, services,
+live CRM activation or deployment; implementation remains UNVERIFIED.

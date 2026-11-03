@@ -15,5 +15,6 @@
 - Keep changes testable and maintainable; document the relevant checks for the owner.
 - Do not run tests, builds, linters, type checks, migrations, seeds, readiness checks, smoke tests, live services, or other verification commands unless the owner explicitly asks for that specific execution.
 - Do not start background terminals, development servers, watchers, or long-running processes.
+- Be token efficient, and leave the testing to me.
 - After each feature, clearly list the exact commands and manual checks the owner should run, and mark implementation as unverified until the owner reports the results.
 - Keep commit messages under 140 characters.

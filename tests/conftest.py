@@ -6,6 +6,7 @@ from dwellcall.settings import ApiSettings, DatabaseConnectionSettings
 from dwellcall.crm.settings import CrmSettings
 from dwellcall.crm.contracts import CrmExportRequest
 from dwellcall.crm.schemas import ConsultationSnapshot, ExportAuthorization
+from dwellcall.listings.settings import ListingSettings
 
 
 @pytest.fixture(autouse=True)
@@ -13,7 +14,8 @@ def isolate_settings_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(ApiSettings.model_config, "env_file", None)
     monkeypatch.setitem(DatabaseConnectionSettings.model_config, "env_file", None)
     monkeypatch.setitem(CrmSettings.model_config, "env_file", None)
-    for name in set(ApiSettings.model_fields) | set(CrmSettings.model_fields):
+    monkeypatch.setitem(ListingSettings.model_config, "env_file", None)
+    for name in set(ApiSettings.model_fields) | set(CrmSettings.model_fields) | set(ListingSettings.model_fields):
         monkeypatch.delenv(name.upper(), raising=False)
 
 
@@ -65,4 +67,16 @@ def authorization(export_request: CrmExportRequest) -> ExportAuthorization:
         business_name="DwellCall",
         details_confirmed=True, storage_permission=True, crm_permission=True,
         consent_version="dwellcall-crm-v1", permission_reference="synthetic-consent-reference",
+    )
+
+
+@pytest.fixture
+def ghl_settings() -> CrmSettings:
+    return CrmSettings(
+        _env_file=None, app_environment="test", crm_provider="gohighlevel",
+        crm_sync_enabled=True, crm_owner_approved=True,
+        crm_automations_disabled_verified=True, crm_hash_secret="g" * 43,
+        ghl_api_enabled=True, ghl_private_integration_token="synthetic-ghl-token",
+        ghl_location_id="test-location",
+        ghl_custom_fields={key: "field-" + key for key in ("agent_id", "revision", "properties", "brokerage", "sources")},
     )

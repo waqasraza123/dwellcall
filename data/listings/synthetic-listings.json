@@ -1,0 +1,62 @@
+{
+  "synthetic": true,
+  "listings": [
+    {
+      "source_listing_id": "DEMO-AUS-1001",
+      "listing_namespace": "demo-mls",
+      "listing_reference": "DEMO-2026-1001",
+      "street_address": "1001 Fictional Cedar Walk",
+      "city": "Austin", "state": "TX", "postal_code": "78704", "country": "US",
+      "price": "685000.00", "currency": "USD",
+      "listing_date": "2026-11-01", "source_updated_at": "2026-11-02T09:00:00Z",
+      "bedrooms": 3, "bathrooms": "2.50", "interior_sqft": "2040.00",
+      "property_type": "single_family", "listing_type": "sale", "status": "active",
+      "listing_url": "https://example.com/dwellcall/listings/demo-1001",
+      "metadata": {"attribution": "Synthetic demonstration; not a real listing"},
+      "agents": [{
+        "source_agent_id": "DEMO-AGENT-01",
+        "identifiers": [{"namespace": "demo-members", "value": "DEMO-MEMBER-01"}],
+        "full_name": "Alex Morgan (Fictional)", "brokerage": "Fictional Austin Homes",
+        "profile_url": "https://example.com/dwellcall/agents/demo-01",
+        "contacts": [
+          {"kind": "business_email", "value": "alex.demo@example.com", "direct": true,
+           "published_as_business": true, "verification": "unverified",
+           "source_reference": "synthetic-directory:demo-01",
+           "source_url": "https://example.com/dwellcall/agents/demo-01"},
+          {"kind": "direct_business_phone", "value": "+15125550101", "direct": true,
+           "published_as_business": true, "verification": "unverified",
+           "source_reference": "synthetic-directory:demo-01"}
+        ]
+      }]
+    },
+    {
+      "source_listing_id": "DEMO-AUS-1002",
+      "street_address": "1002 Fictional Bronze Terrace, Unit 4",
+      "city": "Austin", "state": "TX", "postal_code": "78702", "country": "US",
+      "price": "425000.00", "currency": "USD",
+      "listing_date": "2026-11-01", "source_updated_at": "2026-11-02T10:00:00Z",
+      "bedrooms": 2, "bathrooms": "2.00", "interior_sqft": "1210.00",
+      "property_type": "condo", "listing_type": "sale", "status": "active",
+      "listing_url": "https://example.com/dwellcall/listings/demo-1002",
+      "agents": [
+        {"source_agent_id": "DEMO-AGENT-01", "full_name": "Alex Morgan (Fictional)",
+         "brokerage": "Fictional Austin Homes"},
+        {"source_agent_id": "DEMO-AGENT-02", "full_name": "Casey Rivera (Fictional)",
+         "brokerage": "Fictional Austin Homes",
+         "contacts": [{"kind": "office_phone", "value": "+15125550102", "direct": false,
+                       "published_as_business": true, "verification": "unverified",
+                       "source_reference": "synthetic-office:demo-02"}]}
+      ]
+    },
+    {
+      "source_listing_id": "DEMO-AUS-1003",
+      "street_address": "1003 Fictional Ivory Court",
+      "city": "Austin", "state": "TX", "postal_code": "78745", "country": "US",
+      "price": "2800.00", "currency": "USD", "listing_type": "rent",
+      "source_updated_at": "2026-11-02T11:00:00Z",
+      "bedrooms": 3, "bathrooms": "2.00", "property_type": "townhouse", "status": "pending",
+      "agents": [{"source_agent_id": "DEMO-AGENT-03", "full_name": "Taylor Chen (Fictional)",
+                  "brokerage": "Fictional Lone Star Realty"}]
+    }
+  ]
+}

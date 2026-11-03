@@ -173,6 +173,10 @@ def process_crm_jobs(
     sessions: sessionmaker[Session], settings: CrmSettings,
     provider: CrmProvider | None = None, *, seconds: float = 20, batch_size: int = 12,
 ) -> JobBatchResult:
+    if settings.crm_provider == "gohighlevel":
+        from dwellcall.crm.agent_jobs import process_agent_jobs
+
+        return process_agent_jobs(sessions, settings, seconds=seconds, batch_size=batch_size)
     if not settings.dispatch_enabled:
         return JobBatchResult(status="disabled")
     if not 0 < seconds <= 20 or not 1 <= batch_size <= 50:
@@ -226,7 +230,13 @@ def main() -> None:
     try:
         sessions = sessionmaker(bind=engine, expire_on_commit=False)
         if arguments.purge_only:
-            print(json.dumps({"status": "maintenance_completed", "processed": recover_and_expire(sessions)}))
+            if settings.crm_provider == "gohighlevel":
+                from dwellcall.crm.agent_jobs import recover
+
+                recover(sessions, settings)
+                print(json.dumps({"status": "maintenance_completed"}))
+            else:
+                print(json.dumps({"status": "maintenance_completed", "processed": recover_and_expire(sessions)}))
         else:
             print(json.dumps(asdict(process_crm_jobs(sessions, settings))))
     except (SQLAlchemyError, RuntimeError):

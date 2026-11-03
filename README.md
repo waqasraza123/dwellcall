@@ -1,17 +1,24 @@
-# DwellCall
+# DwellCall — AI Real Estate Lead Intelligence
 
-Your AI Property Consultant. The right place starts with a conversation.
+Find new listings. Identify the agents. Build your pipeline.
 
-**Phase 1 and Phase 2 implementation — UNVERIFIED.** This directory contains an
-extracted HVACLine FastAPI foundation and one Retell + LangGraph property consultant
-for Renting, Buying and Luxury. The first acceptance milestone is owner-run Retell
-Test Audio conversation using three fictional Austin rentals. It has not happened.
+**New Phase 1 source implementation — UNVERIFIED.** The current deliverable is
+bounded synthetic CSV/JSON ingestion, normalized listings and agents, conservative
+deduplication, relationships, provenance and permission-controlled operator APIs,
+built on the existing FastAPI/Neon foundation. No live data service is claimed.
 
-The website and outbound workflow remain deferred. Their implementation must
-adapt HVACLine's existing Next.js application and outbound service. No Git history,
-credentials, environment files, historical notes, provider identifiers or hosting
-configuration were imported. This Phase 1 source is published at the owner's
-request to `waqasraza123/dwellcall`; publication does not verify or activate it.
+GoHighLevel is the primary listing-agent CRM provider. Phase 2 source is
+implemented and UNVERIFIED, with all calls disabled by default; see the
+[GHL owner guide](docs/gohighlevel.md). No direct Zillow, Realtor.com, Redfin, Homes.com, MLS or RESO connector
+is implemented or verified. Polling is inactive. DwellCall has no Next.js app yet;
+Phase 4 will adapt HVACLine's existing frontend. HVACLine remains untouched.
+
+The [listing ingestion guide](docs/listing-ingestion.md) provides exact owner
+checks, migration/import commands and API setup. [Synthetic JSON](data/listings/synthetic-listings.json)
+and [CSV](data/listings/synthetic-listings.csv) require only your independent Neon
+database, with no listing-provider, LLM, Retell or CRM credentials. They use
+fictional Austin listings/agents and reserved example references. This is a
+demonstration without external provider requests, not a database-free demo.
 
 ## Backend setup — owner execution only
 
@@ -27,14 +34,17 @@ cp -n .env.example .env
 The owner has supplied database URLs in the ignored `.env`; preserve that file.
 The no-clobber copy above is only for fresh checkouts. Use independent pooled/direct
 Neon URLs. Leave
-`RETELL_TEST_AUDIO_ENABLED=false` until completing the private setup in
-[the Phase 1 runbook](docs/phase-1.md). Dependencies are declared but have not been
+`RETELL_TEST_AUDIO_ENABLED=false` and `CRM_PROVIDER=none` for listing ingestion.
+Configure a strong `ADMIN_TOKEN` for operator API access.
+Dependencies are declared but have not been
 installed or resolved together. Installing them does not verify compatibility.
 
-Owner checks and the separately controlled migration/startup sequence are in the
-runbook. Codex must not execute them without the owner's specific authorization.
+Owner checks and separately controlled migration/startup are in the ingestion
+guide. Codex must not execute them without specific owner authorization. All
+changes remain UNVERIFIED; the new migration is unapplied. No new dependency or
+infrastructure service was added for ingestion.
 
-## Configuration and data
+## Optional voice consultant — preserved, disabled by default
 
 Change `BUSINESS_NAME`, `SUPPORTED_LOCATION`, `CURRENCY`, `PERSONALITY`,
 `LLM_MODEL` and `PROPERTY_CATALOG_PATH` in `.env`. The catalog's location and
@@ -46,7 +56,7 @@ The existing graph now includes per-call revisions, spoken readback confirmation
 comparison/objection context and natural closing. State stays in memory; confirming
 requirements never grants CRM/storage permission. See [Phase 2 and owner checks](docs/phase-2.md).
 
-## Boundaries
+## Optional voice boundaries
 
 Only a dedicated, version-pinned Retell **web call** can enter the consultant.
 The backend exposes no call-creation, SMS, transfer or public callback endpoint.
@@ -61,12 +71,17 @@ checks remain **UNVERIFIED**. See [reuse inventory](docs/reuse-inventory.md),
 [project state](docs/project-state.md) and [owner runbook](docs/phase-1.md).
 Public release, license approval and Render/Vercel setup are later phases.
 
-## Optional CRM — UNVERIFIED
+## Optional consultation CRM — UNVERIFIED
 
-[The implementation plan](docs/implementation-plan.md) now includes an optional
-[Follow Up Boss integration](docs/follow-up-boss.md). The owner subsequently requested
+[The implementation plan](docs/implementation-plan.md) preserves the optional
+[Follow Up Boss integration](docs/follow-up-boss.md). The owner previously requested
 implementation: provider contracts, adapter, durable backend workflow and mocked
 specifications are written but unexecuted. It defaults to `CRM_PROVIDER=none` and
 requires separate confirmation/data permission. Real dispatch remains disabled
 pending core acceptance, owner approval and automation validation. No CRM network
-work runs in the voice graph. See [setup and exact owner commands](docs/crm-setup.md).
+work runs in the voice graph or ingestion pipeline. It does not sync listing
+agents. `CRM_PROVIDER` accepts `none|gohighlevel|followupboss`, default `none`.
+GHL listing-agent synchronization has separate owner/API/dispatch gates. See [consultation setup](docs/crm-setup.md).
+
+Actual code reuse is recorded in [the inventory](docs/reuse-inventory.md).
+80% is a target for applicable code, not a measured or achieved percentage.

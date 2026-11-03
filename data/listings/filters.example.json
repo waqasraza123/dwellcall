@@ -1,0 +1,10 @@
+{
+  "states": ["TX"],
+  "cities": ["Austin"],
+  "currency": "USD",
+  "min_price": "300000.00",
+  "max_price": "800000.00",
+  "property_types": ["single_family", "condo"],
+  "listing_types": ["sale"],
+  "statuses": ["active"]
+}

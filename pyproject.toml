@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "dwellcall"
 version = "0.1.0"
-description = "A configurable AI property consultant using Retell and LangGraph"
+description = "Real estate lead intelligence with optional voice consultations"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "alembic>=1.18.0,<2",

@@ -13,15 +13,14 @@ from sqlalchemy.orm import Session, sessionmaker
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.middleware.cors import CORSMiddleware
 
-from dwellcall.consultant.catalog import load_catalog
-from dwellcall.consultant.graph import PropertyConsultant
+from dwellcall.crm.agent_routes import create_agent_crm_router
 from dwellcall.crm.routes import create_crm_router
 from dwellcall.crm.settings import CrmSettings
 from dwellcall.database.connection import DatabaseReadinessError, check_database_readiness
 from dwellcall.errors import ApiError, api_error_handler
+from dwellcall.listings.routes import create_listing_router
+from dwellcall.listings.settings import ListingSettings
 from dwellcall.settings import ApiSettings
-from dwellcall.telephony.retell.provider import RetellGateway
-from dwellcall.telephony.retell.routes import create_retell_router
 
 
 class HealthResponse(BaseModel):
@@ -38,15 +37,20 @@ def create_app(
     settings: ApiSettings,
     database_engine: Engine,
     crm_settings: CrmSettings | None = None,
+    listing_settings: ListingSettings | None = None,
 ) -> FastAPI:
     session_factory = sessionmaker(
         bind=database_engine, class_=Session, expire_on_commit=False,
     )
-    gateway = RetellGateway(settings) if settings.retell_test_audio_enabled else None
-    consultant = (
-        PropertyConsultant(settings, load_catalog(settings))
-        if settings.retell_test_audio_enabled else None
-    )
+    gateway = None
+    consultant = None
+    if settings.retell_test_audio_enabled:
+        from dwellcall.consultant.catalog import load_catalog
+        from dwellcall.consultant.graph import PropertyConsultant
+        from dwellcall.telephony.retell.provider import RetellGateway
+
+        gateway = RetellGateway(settings)
+        consultant = PropertyConsultant(settings, load_catalog(settings))
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -67,21 +71,27 @@ def create_app(
         CORSMiddleware,
         allow_origins=[settings.web_origin],
         allow_credentials=False,
-        allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type", "X-Correlation-ID", "X-Admin-Token"],
+        allow_methods=["GET", "POST", "PUT"],
+        allow_headers=["Content-Type", "X-Correlation-ID", "X-Admin-Token", "Idempotency-Key"],
         expose_headers=["X-Correlation-ID"],
     )
     crm = crm_settings or CrmSettings(
         app_environment=settings.app_environment, business_name=settings.business_name,
     )
-    if crm.crm_provider != "none":
+    if crm.crm_provider == "followupboss":
         if settings.admin_token is None or len(settings.admin_token.get_secret_value()) < 32:
             raise ValueError("CRM administration requires a strong ADMIN_TOKEN")
         application.include_router(create_crm_router(settings, session_factory, crm))
+    application.include_router(create_agent_crm_router(settings, session_factory, crm))
     if gateway is not None and consultant is not None:
+        from dwellcall.telephony.retell.routes import create_retell_router
+
         application.include_router(
             create_retell_router(settings, session_factory, gateway, consultant)
         )
+    listing = listing_settings or ListingSettings()
+    if listing.listing_intelligence_enabled:
+        application.include_router(create_listing_router(settings, session_factory, listing, crm))
 
     @application.exception_handler(ApiError)
     async def handle_api_error(request: Request, error: Exception) -> JSONResponse:
@@ -132,6 +142,8 @@ def create_app(
         request.state.correlation_id = str(correlation_id)
         response = await call_next(request)
         response.headers["X-Correlation-ID"] = str(correlation_id)
+        if request.url.path.startswith(("/api/v1/intelligence", "/api/v1/crm")):
+            response.headers["Cache-Control"] = "no-store"
         return response
 
     @application.get("/health", response_model=HealthResponse)

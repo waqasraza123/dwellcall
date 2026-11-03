@@ -1,8 +1,18 @@
+from dwellcall.database.models.agent_crm import AgentCrmAudit, AgentCrmDestination, AgentCrmJob, AgentCrmLink
 from dwellcall.database.models.audio_session import AudioAdmissionGuard, AudioSession
 from dwellcall.database.models.base import Base
 from dwellcall.database.models.crm import CrmAuditEvent, CrmDispatchState, CrmExport
+from dwellcall.database.models.intelligence import (
+    ListingAgent, ListingAgentIdentity, ListingAgentObservation, ListingAuditEvent,
+    ListingContactEvidence, ListingEntity, ListingImportRun, ListingObservation,
+    ListingReview, ListingRevision, ListingSource,
+)
 
 __all__ = [
+    "AgentCrmAudit", "AgentCrmDestination", "AgentCrmJob", "AgentCrmLink",
     "AudioAdmissionGuard", "AudioSession", "Base", "CrmAuditEvent",
     "CrmDispatchState", "CrmExport",
+    "ListingAgent", "ListingAgentIdentity", "ListingAgentObservation", "ListingAuditEvent",
+    "ListingContactEvidence", "ListingEntity", "ListingImportRun", "ListingObservation",
+    "ListingReview", "ListingRevision", "ListingSource",
 ]

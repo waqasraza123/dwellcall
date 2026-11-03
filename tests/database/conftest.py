@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.schema import CreateSchema, DropSchema
 
 from dwellcall.database.connection import create_database_engine
-from dwellcall.database.models import AudioAdmissionGuard, Base, CrmDispatchState
+from dwellcall.database.models import AudioAdmissionGuard, Base, CrmDispatchState, ListingSource
+from dwellcall.listings.registry import SYNTHETIC_PERMISSION, SYNTHETIC_SOURCE_KEY
 from dwellcall.settings import DatabaseConnectionSettings
 
 
@@ -31,6 +32,7 @@ def sessions() -> Iterator[sessionmaker[Session]]:
         with factory() as session, session.begin():
             session.add(AudioAdmissionGuard(id=1))
             session.add(CrmDispatchState(id=1, next_attempt_at=datetime(1970, 1, 1, tzinfo=UTC)))
+            session.add(ListingSource(key=SYNTHETIC_SOURCE_KEY, permission=dict(SYNTHETIC_PERMISSION), permission_version=1, created_at=datetime.now(UTC)))
         yield factory
     finally:
         with engine.begin() as connection:

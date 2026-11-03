@@ -1,4 +1,4 @@
-# Phase 1 reuse inventory — UNVERIFIED
+# DwellCall actual reuse inventory — UNVERIFIED
 
 Source: local `/Users/mc/development/hvacline`, corresponding to
 `waqasraza123/hvacline`. Source inspection and selective extraction only; HVACLine
@@ -96,3 +96,44 @@ New property scenarios/readback content and fictional purchase/luxury records ar
 domain-specific additions. Mocked specifications/documentation are excluded from
 reuse credit. Actual reuse is recorded by source/destination/treatment; 80% remains
 a product target, not a measured result for these early AI-heavy phases.
+
+## Lead intelligence Phase 1 — current product scope — UNVERIFIED
+
+Inspected actual DwellCall modules and HVACLine equivalents before adding this
+domain. Existing DwellCall runtime infrastructure is used directly, not recopied.
+No frontend or outbound product was imported to inflate reuse. Original source
+paths use the backend prefix defined at the start of this inventory.
+
+| Original HVACLine equivalent | Current DwellCall destination | Treatment and reason |
+| --- | --- | --- |
+| `application.py`, `api.py`, `settings.py`, `errors.py` | Existing corresponding modules plus `listings/routes.py`, `listings/settings.py` | Reused existing factory/settings/errors/session architecture. Added router; adapted lazy optional voice initialization. No replacement API framework/configuration system. |
+| `database/connection.py`, `database/models/base.py`, migration runner | Existing modules and new `database/models/intelligence.py`, revision `20261103_0003` | Reused Neon/test isolation/SQLAlchemy/Alembic foundations directly. New minimal listing schema; no HVAC model/history copying. |
+| `demo_security.py`, strict outbound route auth | Existing `admin_security.py` used by intelligence routes | Reused mandatory constant-time operator auth; added separate masked read role. No portal/auth rebuild. |
+| `job_execution.py`, previously extracted to DwellCall CRM | Existing `crm/job_execution.py`, used by `listings/service.py` and `importer.py` | Reused deadlines, job budgets and bounded CLI engine. No queue/service replacement. |
+| `customers.py::normalize_display_text` | `listings/normalization.py::normalize_display_text` | Copied NFKC/whitespace function. Other property normalization is new. Source permissive phone normalization was replaced by strict explicit E.164 validation because country/personal numbers must not be guessed. |
+| `leads/service.py`, `conversations/service.py` | `listings/service.py`, `identity.py` | Adapted actual transaction, replay/fingerprint and confirmed-update patterns. New listing identity semantics; no unrelated lead/agency/booking tables. Pattern adaptation is not copied-line credit. |
+| `booking_jobs.py` advisory transaction lock | `listings/service.py::ingestion_lock`, registry mutations | Adapted nonblocking PostgreSQL transaction advisory lock to one bounded ingestion/maintenance stream. Source job categories are not copied. |
+| `database/models/operations.py` | Listing run/review/audit models | Adapted minimal event/identity evidence shape; no operational dashboard modules copied. |
+| Existing DwellCall CRM abstraction, FUB adapter and durable jobs | Existing `crm/` | Preserved unchanged. Reused execution helper only in Phase 1; agent synchronization/GHL will adapt the durable workflow in Phase 2. No premature export bridge. |
+| No equivalent listing-feed/provider registry, property identity or agent-contact provenance implementation found in inspected source | New `listings/{contracts,schemas,providers,permissions,identity,registry,queries,service,routes,importer,settings,normalization}.py`, intelligence models | New domain behavior is necessary: authorized synthetic parsing, conservative cross-source identities, co-agent relationships, verification claims and retention/suppression. Licensed-feed contract only; no fake live integration. |
+| Existing isolated DwellCall PostgreSQL fixture | `tests/database/conftest.py`, new specifications | Reused random isolated-schema/test-target safeguards, adding synthetic source seed. Tests/examples/docs receive no application-reuse credit. |
+| Existing HVACLine Next.js app | Deferred to new Phase 4 | No DwellCall frontend exists yet. Reuse actual frontend when implementing dashboard; do not create a competing design system. |
+
+Actual extraction this step: one small existing normalization function was copied;
+the listed existing foundation modules are reused directly and specific inspected
+algorithms are adapted. Listing-domain modules are new. No aggregate reuse
+percentage has been measured or claimed; 80% is not demonstrated by this phase.
+
+
+Phase 1 continuation: `listings/reviews.py` reuses existing admin authorization,
+structured API errors, session transactions, ingestion advisory locking and audit
+helpers. Revision `20261103_0004` persists immutable scoped review decisions.
+Identity/suppression changes extend the existing identity tables; no review UI,
+framework, provider integration or CRM pipeline was added. All remains UNVERIFIED.
+
+Phase 2 GHL extends the existing CRM settings/contracts and bounded worker CLI.
+Agent jobs reuse `crm/job_execution.py`, the existing CRM worker advisory lock,
+listing ingestion lock, sessionmaker, mandatory admin authorization and API errors.
+Agent-specific links/jobs/audits replace no consultation models; FUB/voice behavior
+is preserved. New adapter/mapping/API code and unapplied migration 0005 are domain
+implementation, not another CRM framework. Specifications remain unexecuted.
