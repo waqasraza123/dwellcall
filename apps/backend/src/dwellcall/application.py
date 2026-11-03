@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.middleware.cors import CORSMiddleware
 
-from dwellcall.crm.agent_routes import create_agent_crm_router
+from dwellcall.crm.agent_routes import create_agent_crm_router, create_crm_provider_router
 from dwellcall.crm.routes import create_crm_router
 from dwellcall.crm.settings import CrmSettings
 from dwellcall.database.connection import DatabaseReadinessError, check_database_readiness
@@ -84,7 +84,9 @@ def create_app(
         if settings.admin_token is None or len(settings.admin_token.get_secret_value()) < 32:
             raise ValueError("CRM administration requires a strong ADMIN_TOKEN")
         application.include_router(create_crm_router(settings, session_factory, crm))
+    application.include_router(create_crm_provider_router(settings, crm))
     application.include_router(create_agent_crm_router(settings, session_factory, crm))
+    application.include_router(create_agent_crm_router(settings, session_factory, crm, provider_name="hubspot"))
     if gateway is not None and consultant is not None:
         from dwellcall.telephony.retell.routes import create_retell_router
 

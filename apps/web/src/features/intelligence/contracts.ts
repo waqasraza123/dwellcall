@@ -4,9 +4,9 @@ export type Provenance = { source_key: string; source_listing_id: string; attrib
 export type Property = { street_address?: string | null; city?: string | null; state?: string | null; postal_code?: string | null; price?: string | number | null; currency?: string | null; property_type?: string | null; status?: string | null; listing_date?: string | null; source_updated_at?: string | null; listing_url?: string | null; bedrooms?: number | null; bathrooms?: string | null; interior_sqft?: string | null };
 export type Listing = { id: string; data_mode: Mode; property: Property; field_provenance: Record<string, Provenance>; agent_ids: string[]; data_quality: { missing_fields: string[]; known_field_count: number; expected_field_count: number; facts_verified_by_dwellcall: boolean }; first_seen_at: string; updated_at: string; review_required: boolean };
 export type Contact = { kind: string; value: string; direct: boolean; verification_status: string; source_key: string; source_reference: string | null; source_url: string | null; verified_at: string | null; collected_at: string };
-export type Agent = { id: string; data_mode: Mode; full_name: string; brokerage: string | null; profile_url: string | null; field_provenance: Record<string, Provenance>; contacts: Contact[]; review_required: boolean; suppressed: boolean; listing_ids: string[]; active_listings: number; source_keys: string[]; crm_export_eligible: boolean; crm_sync_status: string; ghl_contact_id: string | null };
+export type Agent = { id: string; data_mode: Mode; full_name: string; brokerage: string | null; profile_url: string | null; field_provenance: Record<string, Provenance>; contacts: Contact[]; review_required: boolean; suppressed: boolean; listing_ids: string[]; active_listings: number; source_keys: string[]; crm_export_eligible: boolean; crm_sync_status: string; crm_provider?: string; crm_contact_id?: string | null; crm_company_id?: string | null; ghl_contact_id: string | null };
 export type Revision = { id: string; at: string; events: string[]; source_key: string; property: Property; attribution: string };
-export type Dashboard = { data_mode: Mode; as_of: string; timezone: string; metrics: { listings: number; new_today: number; agents: number; verified_agents: number; synced: number; pending: number; failed: number }; trend: { label: string; value: number }[]; distribution: { label: string; value: number }[] };
+export type Dashboard = { data_mode: Mode; as_of: string; timezone: string; metrics: { listings: number; new_today: number; agents: number; verified_agents: number; synced: number; pending: number; failed: number }; crm_provider: string; trend: { label: string; value: number }[]; distribution: { label: string; value: number }[] };
 export type Permission = { provider: "file" | "licensed_feed"; data_mode: Mode; enabled: boolean; access_confirmed: boolean; permission_reference: string; retrieve_allowed: boolean; store_allowed: boolean; display_allowed: boolean; export_allowed: boolean; contacts_allowed: boolean; trusted_verification: boolean; countries: string[]; states: string[]; cities: string[]; identifier_namespaces: string[]; url_hosts: string[]; retention_days: number; attribution: string; poll_interval_minutes: number };
 export type Source = { source_key: string; permissions: Permission; permission_version: number; last_attempt_at: string | null; last_success_at: string | null; scheduling_active: boolean; live_verified: boolean };
 export type Provider = { provider: string; status: string; mode: string; live_verified: boolean };
@@ -16,6 +16,21 @@ export type DiscoveryAttempt = { id: string; job_id: string; request_id: string;
 export type Event = { id: string; kind: "discovery" | "listing" | "review" | "crm" | "system"; status: string; at: string; source: string; summary: string; reference: string };
 export type Review = { id: string; source_key: string; source_listing_id: string; reason: string; candidate_ids: string[]; evidence: Record<string, unknown>; created_at: string; status: string; requires_reimport: boolean; applied_at: string | null; candidates?: { id: string; agent?: { full_name?: string; brokerage?: string }; property?: Property; suppressed?: boolean }[] };
 export type GhlStatus = { provider: string; selected: boolean; api_enabled: boolean; dispatch_enabled: boolean; credentials_configured: boolean; configured: boolean; required_fields: Record<string, [string, string]>; declared_scopes: string[]; write_scopes_verified: boolean; fields?: Record<string, string>; capabilities?: Record<string, unknown>; paused?: boolean; configured_at?: string; location_id?: string | null; opportunities_enabled?: boolean; pipeline_id?: string | null; pipeline_stage_id?: string | null; optional_provider?: string };
-export type Preview = { agent_id: string; eligible: boolean; reason: string | null; contact_id: string | null; sync_status: string | null; snapshot: { full_name: string; brokerage: string | null; email: string | null; phone: string | null; properties: { listing_id: string; street_address: string | null; source_key: string; listing_url: string | null }[] } | null };
-export type CrmJob = { id: string; agent_id: string; status: string; code: string | null; attempts: number; next_attempt_at: string; contact_id: string | null; opportunity_id: string | null; created_at: string };
+export type Preview = { agent_id: string; eligible: boolean; reason: string | null; contact_id: string | null; company_id?: string | null; last_synced_at?: string | null; sync_status: string | null; snapshot: { full_name: string; brokerage: string | null; email: string | null; phone: string | null; properties: { listing_id: string; street_address: string | null; source_key: string; listing_url: string | null }[] } | null };
+export type CrmJob = { id: string; agent_id: string; status: string; code: string | null; attempts: number; next_attempt_at: string; contact_id: string | null; opportunity_id: string | null; company_id?: string | null; last_synced_at?: string | null; created_at: string };
 export type Audit = { event_type: string; evidence_reference: string | null; occurred_at: string };
+
+export type HubSpotStatus = Omit<GhlStatus, "required_fields"> & {
+  portal_id: string | null;
+  token_type: "service_key" | "private_app";
+  api_version: string;
+  schema_creation_enabled: boolean;
+  required_fields: Record<string, { name: string; label: string; object_type: string; type: string; unique: boolean }>;
+  required_scopes: string[];
+  deals_enabled: boolean;
+  stage_id: string | null;
+  sync_interval_seconds: number;
+  requests_per_second: number;
+  company_mappings: Record<string, string>;
+  last_successful_sync: string | null;
+};

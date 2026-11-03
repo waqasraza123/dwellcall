@@ -80,3 +80,14 @@ def ghl_settings() -> CrmSettings:
         ghl_location_id="test-location",
         ghl_custom_fields={key: "field-" + key for key in ("agent_id", "revision", "properties", "brokerage", "sources")},
     )
+
+
+@pytest.fixture
+def hubspot_settings() -> CrmSettings:
+    return CrmSettings(
+        _env_file=None, app_environment="test", crm_provider="hubspot",
+        crm_sync_enabled=True, crm_owner_approved=True,
+        crm_automations_disabled_verified=True, crm_hash_secret="h" * 43,
+        hubspot_api_enabled=True, hubspot_access_token="synthetic-hubspot-service-key",
+        hubspot_portal_id="12345", hubspot_sync_interval_seconds=1,
+    )

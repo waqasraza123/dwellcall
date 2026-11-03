@@ -165,7 +165,7 @@ class ListingQueries:
                 except AgentIneligible:
                     export_eligible = False
                 crm_link = None
-                if self.crm_settings and self.crm_settings.crm_provider == "gohighlevel" and self.crm_settings.ghl_location_id and self.crm_settings.crm_hash_secret:
+                if self.crm_settings and self.crm_settings.agent_destination_configured:
                     crm_link = session.scalar(select(AgentCrmLink).where(AgentCrmLink.agent_id == agent.id, AgentCrmLink.destination == self.crm_settings.destination))
                 latest_job = session.scalar(select(AgentCrmJob).where(AgentCrmJob.link_id == crm_link.id).order_by(AgentCrmJob.created_at.desc()).limit(1)) if crm_link else None
                 items.append({
@@ -178,7 +178,10 @@ class ListingQueries:
                     "active_listings": sum(1 for listing_id in {listing.listing_id for _, listing, _ in records} if current_listing_data(session, listing_id)[0].get("status") == "active"),
                     "source_keys": sorted({source.key for _, _, source in records}),
                     "crm_export_eligible": export_eligible, "crm_sync_status": latest_job.status if latest_job else "not_queued",
-                    "ghl_contact_id": crm_link.contact_id if crm_link and reveal_contacts else None, "outreach_permission": False,
+                    "ghl_contact_id": crm_link.contact_id if crm_link and reveal_contacts and self.crm_settings and self.crm_settings.crm_provider == "gohighlevel" else None,
+                    "crm_provider": self.crm_settings.crm_provider if self.crm_settings else "none",
+                    "crm_contact_id": crm_link.contact_id if crm_link and reveal_contacts else None,
+                    "crm_company_id": crm_link.company_id if crm_link and reveal_contacts else None, "outreach_permission": False,
                 })
             return {"items": items, "total": total, "page": page, "page_size": page_size, "data_mode": mode}
 

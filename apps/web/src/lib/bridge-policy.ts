@@ -6,16 +6,19 @@ const getPaths = [
   /^intelligence\/workspace\/(dashboard|activity|jobs|attempts|reviews)$/,
   new RegExp(`^intelligence/workspace/listings/${id}(/history)?$`),
   new RegExp(`^intelligence/workspace/agents/${id}$`),
-  /^crm\/ghl\/(status|agents|jobs)$/, new RegExp(`^crm/ghl/jobs/${id}/audit$`),
+  /^crm\/providers$/,
+  /^crm\/(ghl|hubspot)\/(status|agents|jobs)$/, new RegExp(`^crm/(ghl|hubspot)/jobs/${id}/audit$`),
+  /^crm\/admin\/destination$/, new RegExp(`^crm/admin/exports/${id}$`),
 ];
 const postPaths = [
+  /^crm\/hubspot\/properties\/create$/,
   /^intelligence\/workspace\/(jobs|demo\/setup)$/,
   new RegExp(`^intelligence/workspace/jobs/${id}/run$`),
   new RegExp(`^intelligence/agents/${id}/suppress$`),
   new RegExp(`^intelligence/reviews/${id}/resolve$`),
-  /^crm\/ghl\/(setup|agents\/queue|jobs\/process)$/,
-  new RegExp(`^crm/ghl/jobs/${id}/(retry|reconcile)$`),
-  new RegExp(`^crm/ghl/agents/${id}/bind$`),
+  /^crm\/(ghl|hubspot)\/(setup|agents\/queue|jobs\/process)$/,
+  new RegExp(`^crm/(ghl|hubspot)/jobs/${id}/(retry|reconcile)$`),
+  new RegExp(`^crm/(ghl|hubspot)/agents/${id}/bind$`),
 ];
 export function bridgeAllowed(method: string, path: string): boolean {
   if (path.includes("..") || path.includes("%") || path.includes("\\")) return false;

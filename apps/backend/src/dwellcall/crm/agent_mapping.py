@@ -112,19 +112,32 @@ def _export_snapshot(session: Session, agent_id: UUID) -> AgentContactSnapshot:
         listing_url=optional_text(listing.snapshot.get("listing_url")), street_address=optional_text(listing.snapshot.get("street_address")),
         status=optional_text(listing.snapshot.get("status")), price=str(listing.snapshot["price"]) if listing.snapshot.get("price") is not None else None,
         currency=optional_text(listing.snapshot.get("currency")), permission_version=source.permission_version,
+        city=optional_text(listing.snapshot.get("city")), state=optional_text(listing.snapshot.get("state")),
+        postal_code=optional_text(listing.snapshot.get("postal_code")),
     ) for _, listing, source in eligible]
     newest = eligible[0][0]
     return AgentContactSnapshot(
         agent_id=agent_id, full_name=str(newest.snapshot["full_name"]), brokerage=optional_text(newest.snapshot.get("brokerage")),
         email=next(iter(contacts["email"]), None), phone=next(iter(contacts["phone"]), None),
+        last_discovered_at=max(listing.collected_at for _, listing, _ in eligible),
         properties=sorted(properties, key=lambda item: (str(item.listing_id), item.source_key, item.source_listing_id)),
         contact_references=sorted(references, key=lambda item: json.dumps(item, sort_keys=True)),
     )
 
 
 def snapshot_fingerprint(settings: CrmSettings, snapshot: AgentContactSnapshot, fields: dict[str, str]) -> str:
+    if settings.crm_provider == "hubspot":
+        return settings.fingerprint("hubspot-agent-export", json.dumps({
+            "snapshot": snapshot.model_dump(mode="json"), "fields": fields,
+            "source": settings.hubspot_lead_source, "classification": settings.hubspot_classifications,
+            "companies": settings.hubspot_company_mappings, "deals": settings.hubspot_deals_enabled,
+            "pipeline": settings.hubspot_pipeline_id, "stage": settings.hubspot_stage_id,
+            "statuses": settings.hubspot_qualifying_statuses, "minimum": settings.hubspot_qualified_min_listings,
+        }, sort_keys=True, separators=(",", ":")))
+    legacy = snapshot.model_dump(mode="json", exclude={"last_discovered_at"})
+    legacy["properties"] = [item.model_dump(mode="json", exclude={"city", "state", "postal_code"}) for item in snapshot.properties]
     return settings.fingerprint("agent-export", json.dumps({
-        "snapshot": snapshot.model_dump(mode="json"), "fields": fields,
+        "snapshot": legacy, "fields": fields,
         "tags": settings.ghl_tags, "source": settings.ghl_lead_source,
         "opportunities": settings.ghl_opportunities_enabled, "pipeline": settings.ghl_pipeline_id,
         "stage": settings.ghl_pipeline_stage_id, "qualifying_statuses": settings.ghl_qualifying_statuses, "qualified_min": settings.ghl_qualified_min_listings,

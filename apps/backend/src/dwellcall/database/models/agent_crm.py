@@ -28,6 +28,7 @@ class AgentCrmLink(UuidPrimaryKeyMixin, Base):
     destination: Mapped[str] = mapped_column(ForeignKey("agent_crm_destinations.destination", ondelete="RESTRICT"))
     contact_id: Mapped[str | None] = mapped_column(Text)
     opportunity_id: Mapped[str | None] = mapped_column(Text)
+    company_id: Mapped[str | None] = mapped_column(Text)
     synced_fingerprint: Mapped[str | None] = mapped_column(Text)
     synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

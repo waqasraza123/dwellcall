@@ -4,14 +4,14 @@ from uuid import UUID
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session, sessionmaker
 
-from dwellcall.crm.agent_mapping import AgentIneligible, export_snapshot, snapshot_fingerprint
+from dwellcall.crm.agent_mapping import AgentIneligible, export_snapshot
 from dwellcall.crm.agent_schemas import ContactBinding, GhlSetupInput, LocationProvisionInput
-from dwellcall.crm.agent_service import agent_audit, destination_state
+from dwellcall.crm.agent_service import agent_audit, bind_verified_contact, destination_state
 from dwellcall.crm.job_execution import job_budget, provider_client
 from dwellcall.crm.jobs import JOB_LOCK_NAME
 from dwellcall.crm.providers.gohighlevel import FIELD_DEFINITIONS, GhlFailure, GoHighLevelProvider, field_values, remote_id
 from dwellcall.crm.settings import CrmSettings
-from dwellcall.database.models import AgentCrmDestination, AgentCrmJob, AgentCrmLink
+from dwellcall.database.models import AgentCrmDestination
 from dwellcall.errors import ApiError
 from dwellcall.listings.service import ingestion_lock
 
@@ -128,32 +128,7 @@ class GhlConfigurationService:
             if not ((snapshot.email and str(contact.get("email", "")).casefold() == snapshot.email.casefold())
                     or (snapshot.phone and contact.get("phone") == snapshot.phone)):
                 raise ApiError(status_code=409, code="GHL_CONTACT_EVIDENCE_MISMATCH", message="A verified direct email or phone must match the selected contact")
-            collision = session.scalar(select(AgentCrmLink).where(AgentCrmLink.destination == state.destination, AgentCrmLink.contact_id == request.contact_id))
-            if collision and collision.agent_id != agent_id:
-                raise ApiError(status_code=409, code="GHL_LOCAL_CONTACT_COLLISION", message="Contact is already mapped to a different agent")
-            link = session.scalar(select(AgentCrmLink).where(AgentCrmLink.destination == state.destination, AgentCrmLink.agent_id == agent_id).with_for_update())
-            if link and link.contact_id not in (None, request.contact_id):
-                raise ApiError(status_code=409, code="GHL_MAPPING_IMMUTABLE", message="Existing contact mappings cannot be reassigned")
-            if link and session.scalar(select(AgentCrmJob.id).where(AgentCrmJob.link_id == link.id, AgentCrmJob.status.in_(("sending", "unknown"))).limit(1)):
-                raise ApiError(status_code=409, code="GHL_OUTCOME_UNRESOLVED", message="Reconcile the existing uncertain job before binding")
-            if link is None:
-                from uuid import uuid4
-
-                link = AgentCrmLink(id=uuid4(), agent_id=agent_id, destination=state.destination)
-                session.add(link)
-            link.contact_id = request.contact_id
-            session.flush()
-            digest = snapshot_fingerprint(self.settings, snapshot, state.fields)
-            for job in session.scalars(select(AgentCrmJob).where(
-                AgentCrmJob.link_id == link.id, AgentCrmJob.status == "failed",
-                AgentCrmJob.code.in_(("GHL_CONTACT_REVIEW_REQUIRED", "GHL_CONFLICTING_CONTACT_MATCHES", "GHL_MULTIPLE_CONTACT_MATCHES")),
-                AgentCrmJob.fingerprint == digest, AgentCrmJob.retain_until > datetime.now(UTC),
-            )):
-                job.status, job.code, job.attempts = "retry_wait", "GHL_CONTACT_CONFIRMED_RETRY_UPDATE", 0
-                job.next_attempt_at = max(datetime.now(UTC), state.next_attempt_at)
-                agent_audit(session, state.destination, "GHL_BOUND_CONTACT_RETRY", job.id, request.evidence_reference)
-            agent_audit(session, state.destination, "GHL_CONTACT_BOUND", reference=request.evidence_reference)
-            return {"agent_id": str(agent_id), "contact_id": link.contact_id, "external_write": False}
+            return bind_verified_contact(session, self.settings, agent_id, request.contact_id, request.evidence_reference)
 
     def provision(self, request: LocationProvisionInput, provider: GoHighLevelProvider | None = None) -> dict[str, object]:
         settings = self.settings

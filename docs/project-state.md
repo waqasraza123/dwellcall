@@ -99,3 +99,12 @@ live CRM activation or deployment; implementation remains UNVERIFIED.
 - No checks, installs, services, migrations, live calls or publication were executed. Runtime, security, responsive layout and owner acceptance remain unverified. Commands: `docs/phase-4.md`.
 
 The owner authorized pushing Phase 4 and merging it into `main`. Publication does not authorize checks, migrations, services, deployment or live CRM activation. Implementation remains UNVERIFIED.
+
+## HubSpot source extension — UNVERIFIED
+
+- Owner requested implementation on a new local branch without publication. `feat/hubspot-crm` is based on existing main `ebf6e10`; no new commits or remote branch were created.
+- Adds the optional `hubspot` provider, Service Key/private-app configuration, date-versioned adapter, owned contact/company properties and optional deal associations. Existing agent contracts/jobs/worker/eligibility/locks/audits and frontend controls are extended rather than replaced.
+- Migration `20261104_0007` adds company references to existing CRM links; unapplied. Unknown writes remain lookup-gated; source permissions and synthetic/suppression exclusions remain authoritative. GHL/FUB and optional Retell paths remain present.
+- Mocked and isolated-database specifications are written, not executed. No checks, installs, services, live CRM calls, account changes, publication or deployment ran. Owner setup and exact commands: `docs/hubspot.md`.
+
+- Publication authorized by owner: publish `feat/hubspot-crm` and merge into `main`. Implementation remains UNVERIFIED; no checks, migrations, services or live CRM calls executed.

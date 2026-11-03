@@ -27,3 +27,15 @@ describe("workspace requests", () => {
     expect(storage.size).toBe(1);
   });
 });
+
+it("HubSpot schema changes require an explicit POST carrying an action key", async () => {
+  const fetcher = vi.fn().mockResolvedValue(Response.json({ properties: { agent_id: "created" } }));
+  vi.stubGlobal("fetch", fetcher);
+  const body = { evidence_reference: "mock-owner-approval", approve_external_creation: true, custom_fields: { agent_id: "dwellcall_agent_id" } };
+  await requestApi("crm/hubspot/properties/create", "POST", body);
+  expect(fetcher.mock.calls[0][0]).toBe("/api/ops/crm/hubspot/properties/create");
+  expect(fetcher.mock.calls[0][1].method).toBe("POST");
+  expect(fetcher.mock.calls[0][1].headers["Idempotency-Key"]).toMatch(/^[a-f0-9-]{36}$/i);
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual(body);
+  expect(fetcher.mock.calls[0][1].headers).not.toHaveProperty("Authorization");
+});

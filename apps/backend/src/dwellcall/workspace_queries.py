@@ -55,7 +55,7 @@ class WorkspaceQueries:
             metrics = {"listings": count(listings), "new_today": count(listings.where(ListingEntity.created_at >= today)),
                        "agents": count(agents), "verified_agents": count(contacts),
                        "synced": 0, "pending": 0, "failed": 0}
-            if self.crm.crm_provider == "gohighlevel" and self.crm.ghl_location_id and self.crm.crm_hash_secret:
+            if self.crm.agent_destination_configured:
                 links = select(AgentCrmLink).where(AgentCrmLink.destination == self.crm.destination,
                                                   AgentCrmLink.agent_id.in_(visible_agents(mode)))
                 metrics["synced"] = count(links.where(AgentCrmLink.synced_at.is_not(None)))
@@ -70,7 +70,7 @@ class WorkspaceQueries:
                 ListingEntity.id.in_(visible_listing_ids(mode)),
             ).group_by(status_field)).all()
             trends = {stamp.date().isoformat(): value for stamp, value in trend}
-            return {"data_mode": mode, "as_of": now, "timezone": "UTC", "metrics": metrics,
+            return {"data_mode": mode, "crm_provider": self.crm.crm_provider, "as_of": now, "timezone": "UTC", "metrics": metrics,
                     "trend": [{"label": (today - timedelta(days=13-i)).date().isoformat(), "value": trends.get((today - timedelta(days=13-i)).date().isoformat(), 0)} for i in range(14)],
                     "distribution": [{"label": name or "unknown", "value": value} for name, value in distribution]}
 
@@ -112,9 +112,9 @@ class WorkspaceQueries:
         attempts = select(DiscoveryAttempt.id, literal("discovery"), DiscoveryAttempt.status, DiscoveryAttempt.started_at,
                           DiscoveryJob.source_key, func.coalesce(DiscoveryAttempt.code, literal("Discovery job run")), DiscoveryAttempt.job_id).join(DiscoveryJob).join(ListingSource).where(*permitted, DiscoveryAttempt.started_at > cutoff)
         parts = [imports, audits, revisions, reviews, attempts]
-        if self.crm.crm_provider == "gohighlevel" and self.crm.ghl_location_id and self.crm.crm_hash_secret:
+        if self.crm.agent_destination_configured:
             parts.append(select(AgentCrmAudit.id, literal("crm"), AgentCrmJob.status, AgentCrmAudit.occurred_at,
-                                literal("gohighlevel"), AgentCrmAudit.event_type, AgentCrmJob.id).join(
+                                literal(self.crm.crm_provider), AgentCrmAudit.event_type, AgentCrmJob.id).join(
                 AgentCrmJob, AgentCrmJob.id == AgentCrmAudit.job_id,
             ).join(AgentCrmLink, AgentCrmLink.id == AgentCrmJob.link_id).where(
                 AgentCrmAudit.destination == self.crm.destination, AgentCrmLink.agent_id.in_(visible_agents(mode)), AgentCrmJob.retain_until > func.now()))

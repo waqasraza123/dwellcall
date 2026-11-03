@@ -53,7 +53,7 @@ def create_listing_router(api: ApiSettings, sessions: sessionmaker[Session], set
 
     @router.get("/providers", dependencies=[Depends(reader)])
     def providers() -> dict[str, object]:
-        return {"providers": provider_availability(), "primary_crm": "gohighlevel", "listing_crm_state": "implemented_unverified_disabled_by_default", "outreach_enabled": False}
+        return {"providers": provider_availability(), "primary_crm": "gohighlevel", "available_crm_providers": ["gohighlevel", "followupboss", "hubspot"], "listing_crm_state": "implemented_unverified_disabled_by_default", "outreach_enabled": False}
 
     @router.get("/sources", dependencies=[Depends(admin)])
     def sources() -> list[dict[str, object]]:
