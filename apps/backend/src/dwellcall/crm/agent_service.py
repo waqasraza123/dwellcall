@@ -20,7 +20,7 @@ def agent_audit(session: Session, destination: str, event: str, job_id: UUID | N
 def destination_state(session: Session, settings: CrmSettings) -> AgentCrmDestination:
     row = session.get(AgentCrmDestination, settings.destination, with_for_update=True)
     if row is None:
-        row = AgentCrmDestination(destination=settings.destination, fields=dict(settings.ghl_custom_fields),
+        row = AgentCrmDestination(destination=settings.destination, fields=dict(settings.agent_fields),
                                   capabilities={}, paused=False, next_attempt_at=datetime.now(UTC))
         session.add(row)
         session.flush()
@@ -30,13 +30,13 @@ def destination_state(session: Session, settings: CrmSettings) -> AgentCrmDestin
 def job_status(row: AgentCrmJob, link: AgentCrmLink) -> AgentJobStatus:
     return AgentJobStatus(id=row.id, agent_id=link.agent_id, status=row.status, code=row.code,
                           attempts=row.attempts, next_attempt_at=row.next_attempt_at, contact_id=link.contact_id,
-                          opportunity_id=link.opportunity_id, created_at=row.created_at)
+                          opportunity_id=link.opportunity_id, company_id=link.company_id, last_synced_at=link.synced_at, created_at=row.created_at)
 
 
 def reserve_agent(session: Session, settings: CrmSettings, agent_id: UUID) -> AgentCrmJob:
     state = destination_state(session, settings)
-    if not state.configured_at or len(state.fields) != 5:
-        raise ApiError(status_code=409, code="GHL_SETUP_REQUIRED", message="Inspect and configure the GHL field mapping first")
+    if not state.configured_at or settings.required_agent_fields - state.fields.keys():
+        raise ApiError(status_code=409, code=settings.agent_code("SETUP_REQUIRED"), message="Inspect and configure the CRM field mapping first")
     try:
         snapshot = export_snapshot(session, agent_id)
     except AgentIneligible as error:
@@ -49,15 +49,15 @@ def reserve_agent(session: Session, settings: CrmSettings, agent_id: UUID) -> Ag
         session.flush()
     rows = list(session.scalars(select(AgentCrmJob).where(AgentCrmJob.link_id == link.id).with_for_update()))
     if any(row.status in {"sending", "unknown"} for row in rows):
-        raise ApiError(status_code=409, code="GHL_OUTCOME_UNRESOLVED", message="Reconcile the prior uncertain synchronization before reserving another")
+        raise ApiError(status_code=409, code=settings.agent_code("OUTCOME_UNRESOLVED"), message="Reconcile the prior uncertain synchronization before reserving another")
     existing = next((row for row in rows if row.fingerprint == digest), None)
     if existing is not None and (existing.status not in {"sent", "cancelled"} or link.synced_fingerprint == digest):
         return existing
     now = datetime.now(UTC)
     for old in rows:
         if old.status in {"pending", "retry_wait"}:
-            old.status, old.code, old.payload = "cancelled", "GHL_SNAPSHOT_SUPERSEDED", None
-            agent_audit(session, state.destination, "GHL_SNAPSHOT_SUPERSEDED", old.id)
+            old.status, old.code, old.payload = "cancelled", settings.agent_code("SNAPSHOT_SUPERSEDED"), None
+            agent_audit(session, state.destination, settings.agent_code("SNAPSHOT_SUPERSEDED"), old.id)
     row = existing or AgentCrmJob(id=uuid4(), link_id=link.id, fingerprint=digest, created_at=now)
     row.status, row.code, row.attempts = "pending", None, 0
     row.payload, row.fields = snapshot.model_dump(mode="json"), dict(state.fields)
@@ -65,8 +65,37 @@ def reserve_agent(session: Session, settings: CrmSettings, agent_id: UUID) -> Ag
     row.retain_until = now + timedelta(days=settings.crm_retention_days)
     session.add(row)
     session.flush()
-    agent_audit(session, state.destination, "GHL_EXPORT_RESERVED", row.id)
+    agent_audit(session, state.destination, settings.agent_code("EXPORT_RESERVED"), row.id)
     return row
+
+
+def bind_verified_contact(session: Session, settings: CrmSettings, agent_id: UUID, contact_id: str, reference: str) -> dict[str, object]:
+    state = destination_state(session, settings)
+    collision = session.scalar(select(AgentCrmLink).where(AgentCrmLink.destination == state.destination, AgentCrmLink.contact_id == contact_id))
+    if collision and collision.agent_id != agent_id:
+        raise ApiError(status_code=409, code=settings.agent_code("LOCAL_CONTACT_COLLISION"), message="Contact already belongs to another local agent")
+    link = session.scalar(select(AgentCrmLink).where(AgentCrmLink.destination == state.destination, AgentCrmLink.agent_id == agent_id).with_for_update())
+    if link and link.contact_id not in (None, contact_id):
+        raise ApiError(status_code=409, code=settings.agent_code("MAPPING_IMMUTABLE"), message="Existing contact mappings cannot be reassigned")
+    if link and session.scalar(select(AgentCrmJob.id).where(AgentCrmJob.link_id == link.id, AgentCrmJob.status.in_(("sending", "unknown"))).limit(1)):
+        raise ApiError(status_code=409, code=settings.agent_code("OUTCOME_UNRESOLVED"), message="Reconcile the uncertain job before binding")
+    if link is None:
+        link = AgentCrmLink(id=uuid4(), agent_id=agent_id, destination=state.destination)
+        session.add(link)
+    link.contact_id = contact_id
+    session.flush()
+    snapshot = export_snapshot(session, agent_id)
+    digest = snapshot_fingerprint(settings, snapshot, state.fields)
+    for job in session.scalars(select(AgentCrmJob).where(
+        AgentCrmJob.link_id == link.id, AgentCrmJob.status == "failed",
+        AgentCrmJob.code.in_(tuple(settings.agent_code(suffix) for suffix in ("CONTACT_REVIEW_REQUIRED", "CONFLICTING_CONTACT_MATCHES", "MULTIPLE_CONTACT_MATCHES"))),
+        AgentCrmJob.fingerprint == digest, AgentCrmJob.retain_until > datetime.now(UTC),
+    )):
+        job.status, job.code, job.attempts = "retry_wait", settings.agent_code("CONTACT_CONFIRMED_RETRY_UPDATE"), 0
+        job.next_attempt_at = max(datetime.now(UTC), state.next_attempt_at)
+        agent_audit(session, state.destination, settings.agent_code("BOUND_CONTACT_RETRY"), job.id, reference)
+    agent_audit(session, state.destination, settings.agent_code("CONTACT_BOUND"), reference=reference)
+    return {"agent_id": str(agent_id), "contact_id": link.contact_id, "external_write": False}
 
 
 class AgentCrmService:
@@ -74,8 +103,9 @@ class AgentCrmService:
         self.sessions, self.settings = sessions, settings
 
     def queue(self, agent_ids: list[UUID]) -> list[AgentJobStatus]:
-        if self.settings.crm_provider != "gohighlevel" or not self.settings.dispatch_enabled:
-            raise ApiError(status_code=409, code="GHL_SYNC_DISABLED", message="Owner-approved GHL dispatch must be enabled before queuing")
+        settings = self.settings
+        if not self.settings.agent_provider_selected or not self.settings.dispatch_enabled:
+            raise ApiError(status_code=409, code=settings.agent_code("SYNC_DISABLED"), message="Owner-approved CRM dispatch must be enabled before queuing")
         with self.sessions() as session, session.begin():
             ingestion_lock(session)
             result = []
@@ -93,13 +123,14 @@ class AgentCrmService:
             ids = session.scalars(select(ListingAgent.id).order_by(ListingAgent.created_at, ListingAgent.id).offset((page - 1) * page_size).limit(page_size))
             items = []
             for agent_id in ids:
-                link = session.scalar(select(AgentCrmLink).where(AgentCrmLink.agent_id == agent_id, AgentCrmLink.destination == self.settings.destination)) if self.settings.crm_provider == "gohighlevel" and self.settings.ghl_location_id and self.settings.crm_hash_secret else None
+                link = session.scalar(select(AgentCrmLink).where(AgentCrmLink.agent_id == agent_id, AgentCrmLink.destination == self.settings.destination)) if self.settings.agent_destination_configured else None
                 try:
                     snapshot = export_snapshot(session, agent_id)
                     item = AgentPreview(agent_id=agent_id, eligible=True, snapshot=snapshot)
                 except AgentIneligible as error:
                     item = AgentPreview(agent_id=agent_id, eligible=False, reason=str(error))
                 if link:
+                    item.company_id, item.last_synced_at = link.company_id, link.synced_at
                     item.contact_id = link.contact_id
                     latest = session.scalar(select(AgentCrmJob).where(AgentCrmJob.link_id == link.id).order_by(AgentCrmJob.created_at.desc()).limit(1))
                     item.sync_status = latest.status if latest else None
@@ -107,7 +138,7 @@ class AgentCrmService:
             return AgentPreviewPage(items=items, page=page, page_size=page_size, total=total)
 
     def history(self, page: int, page_size: int, status: str | None = None, agent_id: UUID | None = None) -> AgentJobPage:
-        if not self.settings.ghl_location_id or not self.settings.crm_hash_secret:
+        if not self.settings.agent_destination_configured:
             return AgentJobPage(items=[], page=page, page_size=page_size, total=0)
         with self.sessions() as session:
             query = select(AgentCrmJob, AgentCrmLink).join(AgentCrmLink, AgentCrmLink.id == AgentCrmJob.link_id).where(AgentCrmLink.destination == self.settings.destination)
@@ -120,27 +151,28 @@ class AgentCrmService:
             return AgentJobPage(items=[job_status(row, link) for row, link in rows], page=page, page_size=page_size, total=total)
 
     def retry(self, job_id: UUID, reference: str) -> AgentJobStatus:
-        if self.settings.crm_provider != "gohighlevel" or not self.settings.dispatch_enabled:
-            raise ApiError(status_code=409, code="GHL_SYNC_DISABLED", message="Enable approved GHL dispatch before retrying")
+        settings = self.settings
+        if not self.settings.agent_provider_selected or not self.settings.dispatch_enabled:
+            raise ApiError(status_code=409, code=settings.agent_code("SYNC_DISABLED"), message="Enable approved CRM dispatch before retrying")
         with self.sessions() as session, session.begin():
             ingestion_lock(session)
             state = destination_state(session, self.settings)
             row = session.get(AgentCrmJob, job_id, with_for_update=True)
             link = session.get(AgentCrmLink, row.link_id) if row else None
             if row is None or link is None or link.destination != state.destination:
-                raise ApiError(status_code=404, code="GHL_JOB_NOT_FOUND", message="Synchronization job not found")
-            safe_codes = {"GHL_RATE_LIMITED", "GHL_NOT_SUBMITTED", "GHL_READ_UNAVAILABLE", "GHL_CONTACT_CONFIRMED_RETRY_UPDATE", "GHL_REJECTED_401", "GHL_REJECTED_403"}
+                raise ApiError(status_code=404, code=settings.agent_code("JOB_NOT_FOUND"), message="Synchronization job not found")
+            safe_codes = {settings.agent_code("RATE_LIMITED"), settings.agent_code("NOT_SUBMITTED"), settings.agent_code("READ_UNAVAILABLE"), settings.agent_code("CONTACT_CONFIRMED_RETRY_UPDATE"), settings.agent_code("REJECTED_401"), settings.agent_code("REJECTED_403")}
             if row.status not in {"failed", "retry_wait"} or row.code not in safe_codes or row.retain_until <= datetime.now(UTC):
-                raise ApiError(status_code=409, code="GHL_RETRY_UNSAFE", message="Only retained, confirmed-safe failures can be retried; reconcile unknown writes first")
+                raise ApiError(status_code=409, code=settings.agent_code("RETRY_UNSAFE"), message="Only retained, confirmed-safe failures can be retried; reconcile unknown writes first")
             try:
                 current = export_snapshot(session, link.agent_id)
             except AgentIneligible as error:
                 raise ApiError(status_code=409, code=str(error), message="The agent is no longer export eligible") from None
             if snapshot_fingerprint(self.settings, current, state.fields) != row.fingerprint:
-                raise ApiError(status_code=409, code="GHL_SNAPSHOT_CHANGED", message="Queue a fresh eligible snapshot instead")
+                raise ApiError(status_code=409, code=settings.agent_code("SNAPSHOT_CHANGED"), message="Queue a fresh eligible snapshot instead")
             row.payload, row.attempts = current.model_dump(mode="json"), 0
             row.status, row.next_attempt_at, state.paused = "retry_wait", max(datetime.now(UTC), state.next_attempt_at), False
-            agent_audit(session, state.destination, "GHL_OPERATOR_RETRY", row.id, reference)
+            agent_audit(session, state.destination, settings.agent_code("OPERATOR_RETRY"), row.id, reference)
             return job_status(row, link)
 
 
@@ -170,7 +202,7 @@ def job_audit_history(sessions: sessionmaker[Session], settings: CrmSettings, jo
         row = session.get(AgentCrmJob, job_id)
         link = session.get(AgentCrmLink, row.link_id) if row else None
         if row is None or link is None or link.destination != settings.destination:
-            raise ApiError(status_code=404, code="GHL_JOB_NOT_FOUND", message="Synchronization job not found")
+            raise ApiError(status_code=404, code=settings.agent_code("JOB_NOT_FOUND"), message="Synchronization job not found")
         query = select(AgentCrmAudit).where(AgentCrmAudit.job_id == job_id)
         total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
         rows = session.scalars(query.order_by(AgentCrmAudit.occurred_at, AgentCrmAudit.id).offset((page - 1) * page_size).limit(page_size))

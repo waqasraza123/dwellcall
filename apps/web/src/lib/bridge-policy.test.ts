@@ -17,3 +17,15 @@ describe("operator bridge capability boundary", () => {
     expect(bridgeAllowed("POST", "intelligence/sources/demo/purge")).toBe(false);
   });
 });
+
+it("exposes explicit HubSpot operations without turning reads into writes", () => {
+  expect(bridgeAllowed("GET", "crm/providers")).toBe(true);
+  expect(bridgeAllowed("GET", "crm/hubspot/status")).toBe(true);
+  expect(bridgeAllowed("GET", "crm/hubspot/agents")).toBe(true);
+  expect(bridgeAllowed("POST", "crm/hubspot/setup")).toBe(true);
+  expect(bridgeAllowed("POST", "crm/hubspot/properties/create")).toBe(true);
+  expect(bridgeAllowed("POST", `crm/hubspot/jobs/${id}/reconcile`)).toBe(true);
+  expect(bridgeAllowed("GET", "crm/hubspot/properties/create")).toBe(false);
+  expect(bridgeAllowed("GET", "crm/hubspot/jobs/process")).toBe(false);
+  expect(bridgeAllowed("POST", "crm/hubspot/credentials")).toBe(false);
+});

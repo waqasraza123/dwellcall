@@ -38,6 +38,8 @@ class AgentExportRequest:
     fields: dict[str, str]
     contact_id: str | None = None
     opportunity_id: str | None = None
+    company_id: str | None = None
+    uncertain_code: str | None = None
 
 
 @dataclass(frozen=True)
@@ -47,6 +49,7 @@ class AgentDeliveryResult:
     contact_id: str | None = None
     opportunity_id: str | None = None
     retry_after_seconds: int = 0
+    company_id: str | None = None
 
 
 class AgentCrmProvider(Protocol):

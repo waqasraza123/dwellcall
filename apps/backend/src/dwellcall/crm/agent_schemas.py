@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
 
 class AgentProperty(BaseModel):
@@ -15,6 +15,9 @@ class AgentProperty(BaseModel):
     price: str | None = None
     currency: str | None = None
     permission_version: int
+    city: str | None = None
+    state: str | None = None
+    postal_code: str | None = None
 
 
 class AgentContactSnapshot(BaseModel):
@@ -26,6 +29,7 @@ class AgentContactSnapshot(BaseModel):
     phone: str | None = Field(default=None, pattern=r"^\+[1-9][0-9]{7,14}$")
     properties: list[AgentProperty] = Field(min_length=1, max_length=100)
     contact_references: list[dict[str, str | int]] = Field(max_length=100)
+    last_discovered_at: AwareDatetime | None = None
 
     @field_validator("email")
     @classmethod
@@ -91,6 +95,8 @@ class AgentJobStatus(BaseModel):
     next_attempt_at: datetime
     contact_id: str | None
     opportunity_id: str | None
+    company_id: str | None = None
+    last_synced_at: datetime | None = None
     created_at: datetime
 
 
@@ -101,6 +107,8 @@ class AgentPreview(BaseModel):
     snapshot: AgentContactSnapshot | None = None
     contact_id: str | None = None
     sync_status: str | None = None
+    company_id: str | None = None
+    last_synced_at: datetime | None = None
 
 
 class AgentPreviewPage(BaseModel):

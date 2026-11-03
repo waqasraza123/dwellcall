@@ -23,6 +23,22 @@ export async function forwardResponse(response: Response): Promise<NextResponse>
   if (!response.ok) {
     const code = response.status;
     const messages: Record<string, string> = {
+      CRM_PROVIDER_NOT_SELECTED: "This CRM is not selected on the backend. Ask the owner to configure CRM_PROVIDER before using its workflows.",
+      HUBSPOT_PHONE_REGION_NOT_CONFIGURED: "The owner must configure this phone’s country calling code before HubSpot matching. No contact was created.",
+      HUBSPOT_CONTACT_COUNTRY_AMBIGUOUS: "A matching local phone lacks reliable country evidence. Inspect the existing HubSpot contact before binding or creating records.",
+      HUBSPOT_CONTACT_REVIEW_REQUIRED: "A matching HubSpot contact needs an explicit reviewed binding. Use Review existing contact after inspecting its identity.",
+      HUBSPOT_COMPANY_REVIEW_REQUIRED: "An existing company has the same brokerage name. The owner must add an explicit HubSpot company mapping before synchronization.",
+      HUBSPOT_SCHEMA_CREATION_DISABLED: "The backend owner has not enabled HubSpot custom property creation.",
+      HUBSPOT_PORTAL_MISMATCH: "The configured token does not belong to the expected HubSpot account. No writes are authorized.",
+      HUBSPOT_API_DISABLED: "HubSpot API access is disabled by backend configuration.",
+      HUBSPOT_SETUP_REQUIRED: "Validate the HubSpot connection and all required properties before synchronization.",
+      HUBSPOT_SYNC_DISABLED: "HubSpot synchronization is disabled by the owner-controlled backend gates.",
+      HUBSPOT_REJECTED_401: "HubSpot rejected the configured credential. The owner must correct or rotate it before validation.",
+      HUBSPOT_REJECTED_403: "HubSpot denied this operation. Check the token scopes and account permissions.",
+      HUBSPOT_OUTCOME_UNRESOLVED: "A previous HubSpot write has an uncertain outcome. Reconcile it before queuing another export.",
+      HUBSPOT_RETRY_UNSAFE: "This HubSpot operation cannot be retried safely. Inspect its audit and reconcile uncertain writes first.",
+      HUBSPOT_BACKOFF_ACTIVE: "HubSpot backoff is active. Wait until the recorded next attempt time.",
+
       ACTION_ALREADY_SUBMITTED: "This action was already submitted. Refresh its history before allowing another attempt.",
       JOB_RUNNING: "This discovery job is already running. Refresh discovery history.",
       JOB_CHANGED: "This job changed since you opened it. Refresh before saving.",

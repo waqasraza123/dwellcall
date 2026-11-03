@@ -138,7 +138,7 @@ class ListingIngestionService:
                 if outcome == "filtered" and reviews:
                     errors.append({"row": number, "code": "SOURCE_SCOPE_REJECTED"})
             crm_summary: dict[str, object] = {"queued": 0}
-            if self.crm_settings is not None and self.crm_settings.ghl_auto_queue and self.crm_settings.dispatch_enabled and policy.data_mode == "live":
+            if self.crm_settings is not None and self.crm_settings.agent_auto_queue and self.crm_settings.dispatch_enabled and policy.data_mode == "live":
                 from dwellcall.crm.agent_service import queue_import_agents
 
                 crm_summary = queue_import_agents(session, self.crm_settings, source.key, [record.source_listing_id for _, record in batch.records])

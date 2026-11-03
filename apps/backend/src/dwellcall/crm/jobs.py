@@ -173,7 +173,7 @@ def process_crm_jobs(
     sessions: sessionmaker[Session], settings: CrmSettings,
     provider: CrmProvider | None = None, *, seconds: float = 20, batch_size: int = 12,
 ) -> JobBatchResult:
-    if settings.crm_provider == "gohighlevel":
+    if settings.agent_provider_selected:
         from dwellcall.crm.agent_jobs import process_agent_jobs
 
         return process_agent_jobs(sessions, settings, seconds=seconds, batch_size=batch_size)
@@ -230,7 +230,7 @@ def main() -> None:
     try:
         sessions = sessionmaker(bind=engine, expire_on_commit=False)
         if arguments.purge_only:
-            if settings.crm_provider == "gohighlevel":
+            if settings.agent_provider_selected:
                 from dwellcall.crm.agent_jobs import recover
 
                 recover(sessions, settings)

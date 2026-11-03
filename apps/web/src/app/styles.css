@@ -10,3 +10,4 @@
 
 .sidebar nav a>span{display:inline-flex;align-items:center}.sidebar nav svg{width:16px;height:16px}
 @media(max-width:960px){.sidebar nav a>span{display:none}}
+.integration-tabs{display:flex;flex-wrap:wrap;gap:.6rem;margin:0 0 1.7rem;padding-bottom:1rem;border-bottom:1px solid var(--line)}.integration-tabs button[aria-current="page"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
