@@ -49,7 +49,16 @@ class ContactBinding(OperatorEvidence):
 
 
 class GhlSetupInput(OperatorEvidence):
-    pass
+    custom_fields: dict[str, str] | None = Field(default=None, max_length=5)
+
+    @field_validator("custom_fields")
+    @classmethod
+    def mapping_ids(cls, values: dict[str, str] | None) -> dict[str, str] | None:
+        if values is None:
+            return None
+        from dwellcall.crm.settings import CrmSettings
+        return CrmSettings.validate_ghl_fields(values)
+
 
 
 class LocationProvisionInput(OperatorEvidence):

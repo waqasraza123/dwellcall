@@ -89,3 +89,13 @@ hosting and HVACLine. Detailed actual reuse: `docs/reuse-inventory.md`.
 The owner explicitly authorized committing and pushing the pending Phase 1/2
 source to `main`. This publication does not authorize checks, migrations, services,
 live CRM activation or deployment; implementation remains UNVERIFIED.
+
+## Phase 4 source delivered — UNVERIFIED
+
+- Added HVACLine-derived Next.js application shell, operator session/allowlisted server bridge, dashboard, listings/details/history, agent directory/provenance, discovery/jobs/history, reviews, CRM controls and activity.
+- Backend additions reuse existing permission-aware queries, ingestion, review/suppression and GHL services. New migration `20261103_0006` adds durable discovery jobs/attempts and action reservations; unapplied.
+- Bundled synthetic discovery works through deliberate source setup/job/run actions. Optional bounded demo polling CLI is written; no scheduler is configured or started. Live feeds and AI enrichment remain absent.
+- CRM location/credentials/opportunity configuration remains owner-managed on the backend. UI validates existing field mapping and exposes deliberate queue/dispatch/recovery actions without credentials.
+- No checks, installs, services, migrations, live calls or publication were executed. Runtime, security, responsive layout and owner acceptance remain unverified. Commands: `docs/phase-4.md`.
+
+The owner authorized pushing Phase 4 and merging it into `main`. Publication does not authorize checks, migrations, services, deployment or live CRM activation. Implementation remains UNVERIFIED.

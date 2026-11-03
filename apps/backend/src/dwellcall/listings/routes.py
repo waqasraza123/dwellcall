@@ -1,3 +1,5 @@
+from datetime import date
+from decimal import Decimal
 import secrets
 from typing import Annotated, Literal
 from uuid import UUID
@@ -96,15 +98,25 @@ def create_listing_router(api: ApiSettings, sessions: sessionmaker[Session], set
     def listings(
         role: Annotated[str, Depends(reader)], page: int = Query(default=1, ge=1),
         page_size: int = Query(default=25, ge=1, le=100), mode: Literal["synthetic", "live"] = "synthetic",
+        q: str = Query("", max_length=200), min_price: Decimal | None = Query(None, ge=0),
+        max_price: Decimal | None = Query(None, gt=0),
+        property_type: Literal["single_family", "condo", "townhouse", "multifamily", "land", "other"] | None = None,
+        status: Literal["active", "pending", "sold", "removed", "unknown"] | None = None,
+        source: SourceKey | None = None, since: date | None = None, until: date | None = None,
+        sort: Literal["newest", "price_asc", "price_desc", "listing_date", "updated"] = "newest", agent_id: UUID | None = None,
     ) -> dict[str, object]:
-        return queries.listings(page, page_size, mode)
+        if (min_price is not None and max_price is not None and min_price > max_price) or (since and until and since > until):
+            raise ApiError(status_code=422, code="FILTER_RANGE_INVALID", message="The minimum must not exceed the maximum")
+        return queries.listings(page, page_size, mode, q=q, min_price=min_price, max_price=max_price, property_type=property_type,
+                                status=status, source=source, since=since, until=until, sort=sort, agent_id=agent_id)
 
     @router.get("/agents")
     def agents(
         role: Annotated[str, Depends(reader)], page: int = Query(default=1, ge=1),
         page_size: int = Query(default=25, ge=1, le=100), mode: Literal["synthetic", "live"] = "synthetic",
+        q: str = Query("", max_length=200), state: Literal["review", "suppressed"] | None = None,
     ) -> dict[str, object]:
-        return queries.agents(page, page_size, mode, reveal_contacts=role == "admin")
+        return queries.agents(page, page_size, mode, reveal_contacts=role == "admin", q=q, state=state)
 
     @router.post("/agents/{agent_id}/suppress", dependencies=[Depends(admin)])
     def suppress(agent_id: UUID) -> dict[str, bool]:

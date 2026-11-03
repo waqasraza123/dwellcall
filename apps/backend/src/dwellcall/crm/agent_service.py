@@ -93,7 +93,7 @@ class AgentCrmService:
             ids = session.scalars(select(ListingAgent.id).order_by(ListingAgent.created_at, ListingAgent.id).offset((page - 1) * page_size).limit(page_size))
             items = []
             for agent_id in ids:
-                link = session.scalar(select(AgentCrmLink).where(AgentCrmLink.agent_id == agent_id, AgentCrmLink.destination == self.settings.destination)) if self.settings.ghl_location_id and self.settings.crm_hash_secret else None
+                link = session.scalar(select(AgentCrmLink).where(AgentCrmLink.agent_id == agent_id, AgentCrmLink.destination == self.settings.destination)) if self.settings.crm_provider == "gohighlevel" and self.settings.ghl_location_id and self.settings.crm_hash_secret else None
                 try:
                     snapshot = export_snapshot(session, agent_id)
                     item = AgentPreview(agent_id=agent_id, eligible=True, snapshot=snapshot)

@@ -29,8 +29,12 @@ class GhlConfigurationService:
             "configured": False, "required_fields": FIELD_DEFINITIONS,
             "declared_scopes": settings.ghl_declared_scopes,
             "write_scopes_verified": False, "provisioning_enabled": settings.ghl_provisioning_enabled,
+            "location_id": settings.ghl_location_id, "opportunities_enabled": settings.ghl_opportunities_enabled,
+            "pipeline_id": settings.ghl_pipeline_id, "pipeline_stage_id": settings.ghl_pipeline_stage_id,
+            "optional_provider": settings.crm_provider,
+
         }
-        if settings.ghl_location_id and settings.crm_hash_secret:
+        if settings.crm_provider == "gohighlevel" and settings.ghl_location_id and settings.crm_hash_secret:
             with self.sessions() as session:
                 state = session.get(AgentCrmDestination, settings.destination)
                 if state:
@@ -59,7 +63,7 @@ class GhlConfigurationService:
                     raise GhlFailure("failed", "GHL_FIELD_DISCOVERY_INVALID")
                 mapping: dict[str, str] = {}
                 for key, (name, kind) in FIELD_DEFINITIONS.items():
-                    configured = self.settings.ghl_custom_fields.get(key)
+                    configured = (request.custom_fields if request.custom_fields is not None else self.settings.ghl_custom_fields).get(key)
                     matches = [field for field in fields if isinstance(field, dict) and (
                         field.get("id") == configured if configured else field.get("name") == name
                     ) and field.get("model", "contact") == "contact" and field.get("dataType") == kind]
