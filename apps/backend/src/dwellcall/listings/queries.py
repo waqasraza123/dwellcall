@@ -1,6 +1,8 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
+from uuid import UUID
 
-from sqlalchemy import func, select, text
+from sqlalchemy import Numeric, cast, func, or_, select, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -19,6 +21,24 @@ def visible_source_condition() -> ColumnElement[bool]:
         & ListingSource.permission["display_allowed"].as_boolean().is_(True)
         & (ListingObservation.collected_at > func.now() - ListingSource.permission["retention_days"].as_integer() * text("INTERVAL '1 day'"))
     )
+
+
+def visible_listing_ids(mode: str):
+    return select(ListingObservation.listing_id).join(
+        ListingSource, ListingSource.key == ListingObservation.source_key,
+    ).join(ListingEntity, ListingEntity.id == ListingObservation.listing_id).where(
+        visible_source_condition(), ListingEntity.data_mode == mode,
+    )
+
+
+def current_field(name: str):
+    return select(ListingObservation.snapshot[name].astext).join(
+        ListingSource, ListingSource.key == ListingObservation.source_key,
+    ).where(
+        ListingObservation.listing_id == ListingEntity.id,
+        visible_source_condition(), ListingObservation.snapshot.has_key(name),
+    ).order_by(ListingObservation.source_updated_at.desc().nulls_last(),
+               ListingObservation.collected_at.desc(), ListingSource.key.desc()).limit(1).correlate(ListingEntity).scalar_subquery()
 
 
 def quality(data: dict[str, object]) -> dict[str, object]:
@@ -40,11 +60,50 @@ class ListingQueries:
                 "scheduling_active": False, "live_verified": False,
             } for source in session.scalars(select(ListingSource).order_by(ListingSource.key)).all()]
 
-    def listings(self, page: int, page_size: int, mode: str) -> dict[str, object]:
+    def listings(self, page: int, page_size: int, mode: str, *, q: str = "",
+                 min_price: Decimal | None = None, max_price: Decimal | None = None,
+                 property_type: str | None = None, status: str | None = None,
+                 source: str | None = None, since: date | None = None, until: date | None = None,
+                 sort: str = "newest", listing_id: UUID | None = None, agent_id: UUID | None = None) -> dict[str, object]:
         with self.sessions() as session:
-            query = select(ListingEntity).join(ListingObservation, ListingObservation.listing_id == ListingEntity.id).join(ListingSource, ListingSource.key == ListingObservation.source_key).where(visible_source_condition(), ListingEntity.data_mode == mode).distinct()
+            query = select(ListingEntity).where(ListingEntity.id.in_(visible_listing_ids(mode)))
+            if listing_id:
+                query = query.where(ListingEntity.id == listing_id)
+            if agent_id:
+                query = query.where(ListingEntity.id.in_(select(ListingObservation.listing_id).join(
+                    ListingAgentObservation, ListingAgentObservation.observation_id == ListingObservation.id,
+                ).join(ListingSource, ListingSource.key == ListingObservation.source_key).where(
+                    ListingAgentObservation.agent_id == agent_id, ListingAgentObservation.active.is_(True),
+                    visible_source_condition(),
+                    ListingAgentObservation.collected_at > func.now() - ListingSource.permission["retention_days"].as_integer() * text("INTERVAL '1 day'"),
+                )))
+            if q:
+                pattern = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+                query = query.where(or_(*(current_field(name).ilike(pattern, escape="\\") for name in ("street_address", "city", "state", "postal_code"))))
+            if min_price is not None:
+                query = query.where(cast(current_field("price"), Numeric) >= min_price)
+            if max_price is not None:
+                query = query.where(cast(current_field("price"), Numeric) <= max_price)
+            for name, value in (("property_type", property_type), ("status", status)):
+                if value:
+                    query = query.where(current_field(name) == value)
+            if since:
+                query = query.where(current_field("listing_date") >= since.isoformat())
+            if until:
+                query = query.where(current_field("listing_date") <= until.isoformat())
+            if source:
+                query = query.where(ListingEntity.id.in_(select(ListingObservation.listing_id).join(
+                    ListingSource, ListingSource.key == ListingObservation.source_key,
+                ).where(ListingSource.key == source, visible_source_condition())))
+            ordering = {
+                "price_asc": cast(current_field("price"), Numeric).asc().nulls_last(),
+                "price_desc": cast(current_field("price"), Numeric).desc().nulls_last(),
+                "listing_date": current_field("listing_date").desc().nulls_last(),
+                "updated": current_field("source_updated_at").desc().nulls_last(),
+                "newest": ListingEntity.created_at.desc(),
+            }
             total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
-            entities = session.scalars(query.order_by(ListingEntity.created_at.desc(), ListingEntity.id).offset((page - 1) * page_size).limit(page_size)).all()
+            entities = session.scalars(query.order_by(ordering.get(sort, ordering["newest"]), ListingEntity.id).offset((page - 1) * page_size).limit(page_size)).all()
             items = []
             for entity in entities:
                 data, provenance = current_listing_data(session, entity.id)
@@ -52,15 +111,24 @@ class ListingQueries:
                     ListingObservation.listing_id == entity.id, ListingAgentObservation.active.is_(True), visible_source_condition(),
                     ListingAgentObservation.collected_at > func.now() - ListingSource.permission["retention_days"].as_integer() * text("INTERVAL '1 day'"),
                 ).distinct()).all()
-                items.append({"id": str(entity.id), "data_mode": entity.data_mode, "property": data, "field_provenance": provenance, "agent_ids": [str(value) for value in agents], "data_quality": quality(data), "first_seen_at": entity.created_at, "review_required": self._listing_held(session, entity), "crm_export_eligible": False})
+                items.append({"id": str(entity.id), "data_mode": entity.data_mode, "property": data, "field_provenance": provenance, "agent_ids": [str(value) for value in agents], "data_quality": quality(data), "first_seen_at": entity.created_at, "updated_at": entity.updated_at, "review_required": self._listing_held(session, entity), "crm_export_eligible": False})
             return {"items": items, "total": total, "page": page, "page_size": page_size, "data_mode": mode}
 
-    def agents(self, page: int, page_size: int, mode: str, *, reveal_contacts: bool) -> dict[str, object]:
+    def agents(self, page: int, page_size: int, mode: str, *, reveal_contacts: bool, q: str = "", agent_id: UUID | None = None, state: str | None = None) -> dict[str, object]:
         with self.sessions() as session:
             query = select(ListingAgent).join(ListingAgentObservation, ListingAgentObservation.agent_id == ListingAgent.id).join(ListingObservation, ListingObservation.id == ListingAgentObservation.observation_id).join(ListingSource, ListingSource.key == ListingObservation.source_key).where(
                 ListingAgent.data_mode == mode, ListingAgentObservation.active.is_(True), visible_source_condition(),
                 ListingAgentObservation.collected_at > func.now() - ListingSource.permission["retention_days"].as_integer() * text("INTERVAL '1 day'"),
             ).distinct()
+            if agent_id:
+                query = query.where(ListingAgent.id == agent_id)
+            if q:
+                pattern = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+                query = query.where(or_(ListingAgentObservation.snapshot["full_name"].astext.ilike(pattern, escape="\\"), ListingAgentObservation.snapshot["brokerage"].astext.ilike(pattern, escape="\\")))
+            if state == "suppressed":
+                query = query.where(ListingAgent.suppressed_at.is_not(None))
+            elif state == "review":
+                query = query.where(ListingAgent.review_required.is_(True))
             total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
             items = []
             for agent in session.scalars(query.order_by(ListingAgent.created_at.desc(), ListingAgent.id).offset((page - 1) * page_size).limit(page_size)).all():
@@ -107,6 +175,8 @@ class ListingQueries:
                     "contacts": contacts, "review_required": agent.review_required,
                     "suppressed": agent.suppressed_at is not None,
                     "listing_ids": sorted({str(listing.listing_id) for _, listing, _ in records}),
+                    "active_listings": sum(1 for listing_id in {listing.listing_id for _, listing, _ in records} if current_listing_data(session, listing_id)[0].get("status") == "active"),
+                    "source_keys": sorted({source.key for _, _, source in records}),
                     "crm_export_eligible": export_eligible, "crm_sync_status": latest_job.status if latest_job else "not_queued",
                     "ghl_contact_id": crm_link.contact_id if crm_link and reveal_contacts else None, "outreach_permission": False,
                 })

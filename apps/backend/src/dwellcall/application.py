@@ -21,6 +21,8 @@ from dwellcall.errors import ApiError, api_error_handler
 from dwellcall.listings.routes import create_listing_router
 from dwellcall.listings.settings import ListingSettings
 from dwellcall.settings import ApiSettings
+from dwellcall.workspace_routes import create_workspace_router
+from dwellcall.operator_actions import reserve_operator_action
 
 
 class HealthResponse(BaseModel):
@@ -92,6 +94,7 @@ def create_app(
     listing = listing_settings or ListingSettings()
     if listing.listing_intelligence_enabled:
         application.include_router(create_listing_router(settings, session_factory, listing, crm))
+        application.include_router(create_workspace_router(settings, session_factory, listing, crm))
 
     @application.exception_handler(ApiError)
     async def handle_api_error(request: Request, error: Exception) -> JSONResponse:
@@ -140,6 +143,30 @@ def create_app(
         except ValueError:
             correlation_id = uuid4()
         request.state.correlation_id = str(correlation_id)
+        if request.method in {"POST", "PUT", "DELETE"} and request.url.path.startswith(("/api/v1/intelligence", "/api/v1/crm")) and request.headers.get("X-Operator-Action") == "reserve":
+            try:
+                from starlette.concurrency import run_in_threadpool
+                require_admin = request.headers.get("X-Admin-Token")
+                from dwellcall.admin_security import require_admin_token
+                require_admin_token(settings, require_admin)
+                key = request.headers.get("Idempotency-Key", "")
+                body = bytearray()
+                async for chunk in request.stream():
+                    if len(body) + len(chunk) > listing.listing_max_import_bytes + 65536:
+                        raise ApiError(status_code=413, code="ACTION_TOO_LARGE", message="Choose a smaller source file")
+                    body.extend(chunk)
+                request._body = bytes(body)
+                await run_in_threadpool(reserve_operator_action, session_factory, key, request.method + " " + request.url.path + "?" + str(request.url.query), bytes(body))
+            except ApiError as error:
+                denied = await api_error_handler(request, error)
+                denied.headers["Cache-Control"] = "no-store"
+                denied.headers["X-Correlation-ID"] = str(correlation_id)
+                return denied
+            except SQLAlchemyError:
+                denied = await api_error_handler(request, ApiError(status_code=503, code="ACTION_STORE_UNAVAILABLE", message="The action could not be reserved; inspect history before retrying"))
+                denied.headers["Cache-Control"] = "no-store"
+                denied.headers["X-Correlation-ID"] = str(correlation_id)
+                return denied
         response = await call_next(request)
         response.headers["X-Correlation-ID"] = str(correlation_id)
         if request.url.path.startswith(("/api/v1/intelligence", "/api/v1/crm")):

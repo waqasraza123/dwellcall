@@ -1,0 +1,31 @@
+{
+  "name": "dwellcall",
+  "private": true,
+  "engines": {
+    "node": "24.x"
+  },
+  "workspaces": [
+    "apps/web"
+  ],
+  "devDependencies": {
+    "eslint": "9.39.5",
+    "typescript": "6.0.3"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "8.5.25",
+      "sharp": "0.35.3"
+    }
+  },
+  "scripts": {
+    "build:web": "npm run build --workspace @dwellcall/web",
+    "dev:web": "npm run dev --workspace @dwellcall/web",
+    "format:web": "npm run format --workspace @dwellcall/web",
+    "format:check:web": "npm run format:check --workspace @dwellcall/web",
+    "lint:web": "npm run lint --workspace @dwellcall/web",
+    "test:web": "npm run test --workspace @dwellcall/web",
+    "typecheck:web": "npm run typecheck --workspace @dwellcall/web",
+    "verify:web": "npm run format:check:web && npm run lint:web && npm run typecheck:web && npm run test:web && npm run build:web"
+  }
+}
+

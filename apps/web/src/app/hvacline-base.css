@@ -1,0 +1,72 @@
+/* Selected operations styles adapted from HVACLine; source remains read-only. */
+.ops-metrics {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.8rem;
+  margin: 1.5rem 0 2rem;
+}
+
+.ops-metrics article {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  padding: 1.2rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.ops-metrics span {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.ops-metrics strong {
+  font-size: 2rem;
+  font-weight: 550;
+}
+
+.ops-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 2rem;
+  margin: 1rem 0;
+}
+
+.ops-card h2 {
+  font-size: 1.4rem;
+  letter-spacing: -0.03em;
+  margin: 0 0 1.2rem;
+}
+
+.ops-card h3 {
+  font-size: 1.1rem;
+  margin: 0.6rem 0;
+}
+
+.ops-card fieldset {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+}
+
+.ops-card legend {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0 0.5rem;
+}
+
+.access-form {
+  max-width: 640px;
+  margin: 3rem auto;
+}
+
+.access-form button {
+  margin-top: 1.5rem;
+}
+
+.empty-state {
+  color: var(--muted);
+  line-height: 1.55;
+}

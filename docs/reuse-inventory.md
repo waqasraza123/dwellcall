@@ -137,3 +137,15 @@ listing ingestion lock, sessionmaker, mandatory admin authorization and API erro
 Agent-specific links/jobs/audits replace no consultation models; FUB/voice behavior
 is preserved. New adapter/mapping/API code and unapplied migration 0005 are domain
 implementation, not another CRM framework. Specifications remain unexecuted.
+
+## Phase 4 frontend adaptation — source only, UNVERIFIED
+
+| HVACLine source | DwellCall adaptation |
+| --- | --- |
+| apps/web package, TypeScript, Next, ESLint and Vitest configuration | Same workspace layout and pinned toolchain; no voice/customer dependencies in the app manifest |
+| app/layout.tsx and components/brand.tsx | DwellCall root layout and identity |
+| Selected app/styles.css operations rules | hvacline-base.css, ivory/charcoal/bronze tokens and responsive workspace styles |
+| components/product-icons.tsx | Relevant icons reused in navigation |
+| features/customer/memory-action-dialog.tsx | Native modal confirmation, focus restoration and keyboard handling |
+| features/operations/api.ts | Typed request/error helper with server-only auth and persistent action IDs |
+| features/customer/server.ts, proxy.ts and development bridge route | Server-only backend calls, no-store responses, origin/body guards and strict route allowlist; no customer-account system imported |

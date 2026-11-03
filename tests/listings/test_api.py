@@ -48,7 +48,7 @@ def test_viewer_cannot_import_or_view_contact_values(settings: ApiSettings) -> N
         listing, denied = asyncio.run(requests())
     assert listing.status_code == 200
     assert listing.headers["Cache-Control"] == "no-store"
-    query.assert_called_once_with(1, 25, "synthetic", reveal_contacts=False)
+    query.assert_called_once_with(1, 25, "synthetic", reveal_contacts=False, q="", state=None)
     assert denied.status_code == 401
 
 

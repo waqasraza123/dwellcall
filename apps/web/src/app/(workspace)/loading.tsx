@@ -1,0 +1,1 @@
+export default function Loading() { return <div className="skeleton-group" role="status" aria-label="Loading workspace"><p>Loading workspace…</p><div className="skeleton"/><div className="skeleton"/><div className="skeleton"/></div>; }
