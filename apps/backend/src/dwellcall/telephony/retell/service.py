@@ -22,35 +22,43 @@ class AudioSessionService:
         ).scalar_one()
 
     def reserve(self, call_id: str, agent_id: str) -> None:
-        now = datetime.now(UTC)
-        today = datetime.combine(now.date(), datetime.min.time(), tzinfo=UTC)
         with self.sessions() as session, session.begin():
             self._lock(session)
-            existing = session.get(AudioSession, call_id)
-            active = session.scalar(
-                select(AudioSession).where(AudioSession.status != "ended").limit(1)
+            self.reserve_in_session(
+                session, call_id, agent_id, datetime.now(UTC),
+                cost=self.settings.conversation_reserved_cost_cents,
+                daily_limit=self.settings.conversation_daily_session_limit,
+                budget=self.settings.conversation_daily_budget_cents,
             )
-            base = select(AudioSession).where(
-                AudioSession.created_at >= today,
-                AudioSession.reserved_cost_cents > 0,
-            ).subquery()
-            daily = session.scalar(select(func.count()).select_from(base)) or 0
-            reserved = session.scalar(select(func.sum(base.c.reserved_cost_cents))) or 0
-            if (
-                existing is not None
-                or active is not None
-                or daily >= self.settings.conversation_daily_session_limit
-                or reserved + self.settings.conversation_reserved_cost_cents
-                > self.settings.conversation_daily_budget_cents
-            ):
-                raise ApiError(
-                    status_code=429, code="AUDIO_SESSION_LIMIT",
-                    message="A call is active, unresolved, already used, or the daily limit was reached",
-                )
-            session.add(AudioSession(
-                call_id=call_id, agent_id=agent_id, status="active", created_at=now,
-                reserved_cost_cents=self.settings.conversation_reserved_cost_cents,
-            ))
+
+    @staticmethod
+    def reserve_in_session(
+        session: Session, call_id: str, agent_id: str, now: datetime, *,
+        cost: int, daily_limit: int, budget: int,
+    ) -> None:
+        today = datetime.combine(now.date(), datetime.min.time(), tzinfo=UTC)
+        existing = session.get(AudioSession, call_id)
+        active = session.scalar(
+            select(AudioSession).where(AudioSession.status != "ended").limit(1)
+        )
+        base = select(AudioSession).where(
+            AudioSession.created_at >= today, AudioSession.reserved_cost_cents > 0,
+        ).subquery()
+        daily = session.scalar(select(func.count()).select_from(base)) or 0
+        reserved = session.scalar(select(func.sum(base.c.reserved_cost_cents))) or 0
+        if (
+            cost <= 0 or existing is not None or active is not None
+            or daily >= daily_limit or reserved + cost > budget
+        ):
+            raise ApiError(
+                status_code=429, code="AUDIO_SESSION_LIMIT",
+                message="A call is active, unresolved, already used, or the daily call/spending limit was reached",
+            )
+        session.add(AudioSession(
+            call_id=call_id, agent_id=agent_id, status="active", created_at=now,
+            reserved_cost_cents=cost,
+        ))
+        session.flush()
 
     def disconnect(self, call_id: str) -> None:
         with self.sessions() as session, session.begin():

@@ -29,3 +29,14 @@ it("exposes explicit HubSpot operations without turning reads into writes", () =
   expect(bridgeAllowed("GET", "crm/hubspot/jobs/process")).toBe(false);
   expect(bridgeAllowed("POST", "crm/hubspot/credentials")).toBe(false);
 });
+
+it("exposes only authenticated outbound operations, never campaign or Telnyx origination paths", () => {
+  expect(bridgeAllowed("GET", "outbound/calls")).toBe(true);
+  expect(bridgeAllowed("GET", `outbound/requests/${id}`)).toBe(true);
+  expect(bridgeAllowed("POST", "outbound/calls")).toBe(true);
+  expect(bridgeAllowed("POST", `outbound/calls/${id}/refresh`)).toBe(true);
+  expect(bridgeAllowed("POST", `outbound/calls/${id}/carrier-ended`)).toBe(true);
+  expect(bridgeAllowed("GET", "outbound/preflight")).toBe(false);
+  expect(bridgeAllowed("POST", "outbound/campaigns")).toBe(false);
+  expect(bridgeAllowed("POST", "telnyx/calls")).toBe(false);
+});

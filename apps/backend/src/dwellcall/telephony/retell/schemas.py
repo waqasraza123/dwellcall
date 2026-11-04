@@ -13,7 +13,16 @@ class RetellCall(BaseModel):
     agent_version: int = Field(ge=0)
     call_type: Literal["web_call", "phone_call"]
     call_status: Literal["registered", "not_connected", "ongoing", "ended", "error"]
-    start_timestamp: int | None = Field(default=None, ge=0)
+    start_timestamp: int | None = Field(default=None, ge=0, le=253402300799000)
+    end_timestamp: int | None = Field(default=None, ge=0, le=253402300799000)
+    duration_ms: int | None = Field(default=None, ge=0, le=2147483647000)
+    from_number: str | None = Field(default=None, max_length=32)
+    to_number: str | None = Field(default=None, max_length=32)
+    direction: Literal["inbound", "outbound"] | None = None
+    metadata: dict[str, object] | None = None
+    disconnection_reason: str | None = Field(default=None, max_length=100)
+    transfer_destination: str | None = Field(default=None, max_length=200)
+    transfer_end_timestamp: int | None = Field(default=None, ge=0, le=253402300799000)
 
 
 class Utterance(BaseModel):
@@ -87,3 +96,5 @@ class Response(BaseModel):
     content: str
     content_complete: bool
     end_call: bool = False
+    transfer_number: str | None = None
+    show_transferee_as_caller: bool = False

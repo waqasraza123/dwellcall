@@ -1,6 +1,7 @@
 from dwellcall.database.models.workspace import DiscoveryAttempt, DiscoveryJob, OperatorAction
 from dwellcall.database.models.agent_crm import AgentCrmAudit, AgentCrmDestination, AgentCrmJob, AgentCrmLink
 from dwellcall.database.models.audio_session import AudioAdmissionGuard, AudioSession
+from dwellcall.database.models.outbound_demo import OutboundCall, OutboundCallEvent, OutboundSuppression
 from dwellcall.database.models.base import Base
 from dwellcall.database.models.crm import CrmAuditEvent, CrmDispatchState, CrmExport
 from dwellcall.database.models.intelligence import (
@@ -10,6 +11,7 @@ from dwellcall.database.models.intelligence import (
 )
 
 __all__ = [
+    "OutboundCall", "OutboundCallEvent", "OutboundSuppression",
     "DiscoveryAttempt", "DiscoveryJob", "OperatorAction",
     "AgentCrmAudit", "AgentCrmDestination", "AgentCrmJob", "AgentCrmLink",
     "AudioAdmissionGuard", "AudioSession", "Base", "CrmAuditEvent",

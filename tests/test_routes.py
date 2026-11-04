@@ -34,7 +34,8 @@ def application(
     @app.exception_handler(ApiError)
     async def error_handler(request: Request, error: ApiError) -> JSONResponse:
         return await api_error_handler(request, error)
-    app.include_router(routes.create_retell_router(settings, Mock(), gateway, consultant))
+    configured = settings.model_copy(update={"retell_test_audio_enabled": True})
+    app.include_router(routes.create_retell_router(configured, Mock(), gateway, consultant))
     return app, gateway, service
 
 

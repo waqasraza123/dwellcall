@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, Index, Integer, Text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Index, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from dwellcall.database.models.base import Base
@@ -11,6 +11,8 @@ class AudioAdmissionGuard(Base):
     __table_args__ = (CheckConstraint("id = 1", name="singleton"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    outbound_paused: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    transfer_paused: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
 
 class AudioSession(Base):

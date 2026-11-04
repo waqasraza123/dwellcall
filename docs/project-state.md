@@ -1,5 +1,27 @@
 # DwellCall project state
 
+## Retell + Telnyx outbound source — 2026-11-04 — UNVERIFIED
+
+Owner now authorizes committing and pushing all pending outbound source, focused
+specifications, setup documentation and the product README/logos to `main`.
+This does not authorize checks, migrations, services, provider activation or calls.
+
+- Owner authorizes private, consented, allowlisted demonstration calling source.
+  Adapted HVACLine's outbound reservations/recovery/preflight/frontend patterns;
+  HVACLine remained read-only. Retell is the sole originator; no Telnyx dialing API.
+- New migration `20261104_0008` adds hashed call/events/suppression evidence and
+  emergency flags on the existing audio guard. Shared admission/spending, pinned
+  phone identities, webhook lifecycle, lookup/binding, conservative unknown handling
+  and operator carrier-completion recovery are implemented in source.
+- Phone WebSockets reuse the existing consultant, spoken transcript and streaming
+  cancellation. Fixed human transfer requires separate spoken confirmation and
+  defaults off; outbound REFER/PSTN compatibility and carrier-leg caps are unverified.
+- Existing Next.js workspace adds `/calls`, authenticated controls/history/recovery
+  and explicit development simulation without provider calls. Discovery never dials;
+  GHL, FUB and HubSpot paths remain present.
+- No checks, installs, migrations, services, live calls/config changes, credential
+  edits or publication ran. Owner setup/commands: `docs/outbound-calling.md`.
+
 ## Current mission — 2026-11-03
 
 The owner replaced the voice-first roadmap with **DwellCall — AI Real Estate Lead

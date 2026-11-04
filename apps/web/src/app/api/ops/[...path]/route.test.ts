@@ -27,4 +27,19 @@ describe("authenticated operational bridge", () => {
     const denied = await GET(new NextRequest("https://dwellcall.test/api/ops/crm/ghl/jobs/process"), context("crm/ghl/jobs/process"));
     expect(denied.status).toBe(404);
   });
+  it("preserves safe outbound error codes for correction without exposing backend details", async () => {
+    vi.mocked(operatorBackend).mockResolvedValue(Response.json({ error: { code: "OUTBOUND_RECIPIENT_SUPPRESSED", message: "private provider content" } }, { status: 403 }));
+    const response = await POST(new NextRequest("https://dwellcall.test/api/ops/outbound/calls", { method: "POST", headers: { origin: "https://dwellcall.test", "Content-Type": "application/json", "Idempotency-Key": "11111111-1111-4111-8111-111111111111" }, body: "{}" }), context("outbound/calls"));
+    expect(response.status).toBe(403);
+    const result = await response.json();
+    expect(result.error.code).toBe("OUTBOUND_RECIPIENT_SUPPRESSED");
+    expect(result.error.message).not.toContain("private provider");
+  });
+  it("rejects cross-site outbound creation and unauthenticated recovery", async () => {
+    const response = await POST(new NextRequest("https://dwellcall.test/api/ops/outbound/calls", { method: "POST", headers: { origin: "https://other.test", "Content-Type": "application/json", "Idempotency-Key": "11111111-1111-4111-8111-111111111111" }, body: "{}" }), context("outbound/calls"));
+    expect(response.status).toBe(403);
+    vi.mocked(authenticated).mockResolvedValue(false);
+    expect((await GET(new NextRequest("https://dwellcall.test/api/ops/outbound/requests/11111111-1111-4111-8111-111111111111"), context("outbound/requests/11111111-1111-4111-8111-111111111111"))).status).toBe(401);
+    expect(operatorBackend).not.toHaveBeenCalled();
+  });
 });

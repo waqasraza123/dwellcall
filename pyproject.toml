@@ -15,6 +15,7 @@ dependencies = [
     "langchain-openai==1.7.3",
     "langgraph==1.2.19",
     "pydantic-settings==2.14.2",
+    "phonenumbers==9.0.42",
     "psycopg[binary]>=3.3.2,<4",
     "retell-sdk==6.2.16",
     "SQLAlchemy>=2.0.46,<2.1",

@@ -1,5 +1,5 @@
 export class BackendError extends Error {
-  constructor(readonly status: number, message: string) { super(message); this.name = "BackendError"; }
+  constructor(readonly status: number, message: string, readonly code?: string) { super(message); this.name = "BackendError"; }
 }
 // Adapted from HVACLine's server-only customer bridge; no customer accounts are imported.
 export async function operatorBackend(path: string, method = "GET", body?: string, key?: string): Promise<Response> {

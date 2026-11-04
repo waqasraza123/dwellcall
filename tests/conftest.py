@@ -37,6 +37,22 @@ def settings() -> ApiSettings:
 
 
 @pytest.fixture
+def outbound_settings(settings: ApiSettings) -> ApiSettings:
+    return ApiSettings.model_validate({
+        **settings.model_dump(), "outbound_enabled": True,
+        "outbound_agent_id": "agent_outbound", "outbound_agent_version": 3,
+        "outbound_from_number": "+12025550123",
+        "outbound_allowed_numbers": "+12025550124,+12025550126",
+        "outbound_hash_secret": "o" * 43,
+        "outbound_sip_username": "synthetic-sip-user",
+        "outbound_public_base_url": "https://api.dwellcall.test",
+        "outbound_reserved_cost_cents": 100, "outbound_daily_budget_cents": 500,
+        "outbound_destination_permissions_confirmed": True,
+        "outbound_caller_id_confirmed": True,
+    })
+
+
+@pytest.fixture
 def crm_settings() -> CrmSettings:
     return CrmSettings(
         _env_file=None, app_environment="test", crm_provider="followupboss",

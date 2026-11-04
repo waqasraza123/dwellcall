@@ -46,13 +46,19 @@ def create_app(
     )
     gateway = None
     consultant = None
-    if settings.retell_test_audio_enabled:
+    from dwellcall.telephony.outbound.provider import RetellOutboundProvider
+    from dwellcall.telephony.outbound.routes import create_outbound_router
+    from dwellcall.telephony.outbound.service import OutboundCallService
+
+    outbound = OutboundCallService(session_factory, settings, RetellOutboundProvider(settings))
+    if settings.retell_test_audio_enabled or settings.outbound_enabled:
         from dwellcall.consultant.catalog import load_catalog
         from dwellcall.consultant.graph import PropertyConsultant
+        consultant = PropertyConsultant(settings, load_catalog(settings))
+    if settings.retell_test_audio_enabled or settings.outbound_enabled or (settings.retell_api_key and settings.outbound_agent_id):
         from dwellcall.telephony.retell.provider import RetellGateway
 
         gateway = RetellGateway(settings)
-        consultant = PropertyConsultant(settings, load_catalog(settings))
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -87,11 +93,12 @@ def create_app(
     application.include_router(create_crm_provider_router(settings, crm))
     application.include_router(create_agent_crm_router(settings, session_factory, crm))
     application.include_router(create_agent_crm_router(settings, session_factory, crm, provider_name="hubspot"))
-    if gateway is not None and consultant is not None:
+    application.include_router(create_outbound_router(settings, outbound))
+    if gateway is not None:
         from dwellcall.telephony.retell.routes import create_retell_router
 
         application.include_router(
-            create_retell_router(settings, session_factory, gateway, consultant)
+            create_retell_router(settings, session_factory, gateway, consultant, outbound)
         )
     listing = listing_settings or ListingSettings()
     if listing.listing_intelligence_enabled:
@@ -171,7 +178,7 @@ def create_app(
                 return denied
         response = await call_next(request)
         response.headers["X-Correlation-ID"] = str(correlation_id)
-        if request.url.path.startswith(("/api/v1/intelligence", "/api/v1/crm")):
+        if request.url.path.startswith(("/api/v1/intelligence", "/api/v1/crm", "/api/v1/outbound", "/api/v1/retell")):
             response.headers["Cache-Control"] = "no-store"
         return response
 

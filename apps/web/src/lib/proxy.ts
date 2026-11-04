@@ -17,12 +17,39 @@ export async function requestBody(request: NextRequest, limit = 1_114_112): Prom
   } catch (error) { if (error instanceof BackendError) throw error; throw new BackendError(400, "Check the form and try again."); }
 }
 export function proxyFailure(error: unknown): NextResponse {
-  return NextResponse.json({ error: { message: error instanceof BackendError ? error.message : "The service is unavailable. Refresh history before repeating a write." } }, { status: error instanceof BackendError ? error.status : 503, headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ error: { message: error instanceof BackendError ? error.message : "The service is unavailable. Refresh history before repeating a write.", ...(error instanceof BackendError && error.code ? { code: error.code } : {}) } }, { status: error instanceof BackendError ? error.status : 503, headers: { "Cache-Control": "no-store" } });
 }
 export async function forwardResponse(response: Response): Promise<NextResponse> {
   if (!response.ok) {
     const code = response.status;
     const messages: Record<string, string> = {
+      VALIDATION_FAILED: "Check the required fields, telephone format and explicit confirmations.",
+      OUTBOUND_DISABLED: "Outbound calling is disabled. The owner must configure and enable it before preflight.",
+      OUTBOUND_UNAVAILABLE: "Calling is disabled or its configuration is incomplete. Recover an existing request before calling again.",
+      OUTBOUND_DESTINATION_UNSUPPORTED: "This recipient country is not authorized for calling.",
+      OUTBOUND_RECIPIENT_NOT_APPROVED: "This recipient is not on the owner's approved calling allowlist.",
+      OUTBOUND_RECIPIENT_SUPPRESSED: "This recipient is suppressed or restricted from calling.",
+      OUTBOUND_CALL_LOOP: "Caller, recipient and human transfer numbers must differ.",
+      OUTBOUND_CALL_LIMIT: "The daily, per-recipient or cooldown limit has been reached.",
+      AUDIO_SESSION_LIMIT: "An audio call is active or unresolved, or the shared daily call/spending budget was reached.",
+      OUTBOUND_REQUEST_CONFLICT: "This request ID already belongs to another call. Inspect its existing status.",
+      OUTBOUND_KEY_MISMATCH: "The request ID and idempotency header must match. Recover the existing request.",
+      OUTBOUND_REQUEST_NOT_FOUND: "The saved request is not visible yet. Inspect history and do not submit another call.",
+      OUTBOUND_CALL_NOT_FOUND: "This call request could not be found. Do not redial an uncertain request.",
+      OUTBOUND_CALL_IDENTITY_INVALID: "The provider call does not match the authorized agent, recipient, caller or request. Investigate before binding.",
+      OUTBOUND_SEND_IN_FLIGHT: "The provider send may still be in flight. Wait, then verify every carrier leg ended.",
+      RETELL_CREDENTIALS_MISSING: "Configure the dedicated DwellCall Retell API key on the backend.",
+      RETELL_PREFLIGHT_UNAVAILABLE: "Retell configuration could not be read. Check API credentials, access and provider availability.",
+      RETELL_CONFIGURATION_INVALID: "Retell returned malformed configuration. Inspect the imported number and published agent before calling.",
+      TELNYX_TRUNK_MISSING: "Import the authorized Telnyx number and outbound SIP credentials into Retell.",
+      TELNYX_TRUNK_INVALID: "Check the imported caller, Telnyx termination hostname, SIP username and TCP/TLS transport.",
+      RETELL_DESTINATIONS_INVALID: "Authorize the configured destination countries on the imported Retell number.",
+      RETELL_AGENT_INVALID: "Publish the pinned Custom LLM agent with the backend WebSocket URL and bounded call/ringing durations.",
+      RETELL_PRIVACY_INVALID: "Disable recording/transcript storage, contact memory and session tools; configure retention and DNC detection.",
+      RETELL_WEBHOOK_INVALID: "Configure the signed DwellCall Retell webhook and all three lifecycle events.",
+      RETELL_LOOKUP_UNAVAILABLE: "Provider lookup is incomplete or ambiguous. Investigate and bind the existing call without redialing.",
+      RETELL_STATUS_INVALID: "The provider returned invalid call identity or lifecycle evidence. The reservation remains held.",
+      RETELL_STOP_UNCERTAIN: "Stopping is unconfirmed. Verify all carrier legs before releasing this call.",
       CRM_PROVIDER_NOT_SELECTED: "This CRM is not selected on the backend. Ask the owner to configure CRM_PROVIDER before using its workflows.",
       HUBSPOT_PHONE_REGION_NOT_CONFIGURED: "The owner must configure this phone’s country calling code before HubSpot matching. No contact was created.",
       HUBSPOT_CONTACT_COUNTRY_AMBIGUOUS: "A matching local phone lacks reliable country evidence. Inspect the existing HubSpot contact before binding or creating records.",
@@ -57,8 +84,9 @@ export async function forwardResponse(response: Response): Promise<NextResponse>
       AGENT_SUPPRESSED: "Suppression blocks this identity. Review approval cannot override it.",
     };
     let controlledMessage: string | undefined;
-    try { const payload = await response.json(); if (typeof payload?.error?.code === "string") controlledMessage = messages[payload.error.code]; } catch { /* Non-JSON failures use a safe local message. */ }
-    if (controlledMessage) return proxyFailure(new BackendError(code, controlledMessage));
+    let controlledCode: string | undefined;
+    try { const payload = await response.json(); if (typeof payload?.error?.code === "string") { controlledCode = payload.error.code; controlledMessage = messages[payload.error.code]; } } catch { /* Non-JSON failures use a safe local message. */ }
+    if (controlledMessage) return proxyFailure(new BackendError(code, controlledMessage, controlledCode));
     return proxyFailure(new BackendError(code, code === 401 ? "Operator access has expired or is unavailable. Sign in again." : code === 403 ? "This action is not authorized." : code === 404 ? "This record or feature is unavailable." : code === 409 ? "The action is blocked or was already submitted. Refresh history and inspect the record before trying again." : code === 422 ? "Check the required fields, source permissions and selected values." : code === 429 ? "A limit or another operation is active. Wait before trying again." : "The service could not complete the request. Refresh history before repeating a write."));
   }
   if (response.status === 204) return new NextResponse(null, { status: 204, headers: { "Cache-Control": "no-store" } });

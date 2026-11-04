@@ -25,11 +25,13 @@ class RetellGateway:
         await self._client.close()
 
     def validate_identity(self, call: RetellCall, call_id: str) -> None:
+        phone = call.call_type == "phone_call"
+        agent_id = self.settings.outbound_agent_id if phone else self.settings.retell_agent_id
+        version = self.settings.outbound_agent_version if phone else self.settings.retell_agent_version
         if (
             call.call_id != call_id
-            or call.agent_id != self.settings.retell_agent_id
-            or call.agent_version != self.settings.retell_agent_version
-            or call.call_type != "web_call"
+            or call.agent_id != agent_id
+            or call.agent_version != version
         ):
             raise ApiError(
                 status_code=403,
@@ -49,8 +51,9 @@ class RetellGateway:
             raise ApiError(
                 status_code=409, code="CALL_INACTIVE", message="The call is inactive"
             )
-        agent_id = self.settings.retell_agent_id
-        version = self.settings.retell_agent_version
+        phone = call.call_type == "phone_call"
+        agent_id = self.settings.outbound_agent_id if phone else self.settings.retell_agent_id
+        version = self.settings.outbound_agent_version if phone else self.settings.retell_agent_version
         if agent_id is None or version is None:
             raise ValueError("Retell agent configuration is unavailable")
         agent = await self._client.agent.retrieve(agent_id, version=version)
@@ -62,7 +65,7 @@ class RetellGateway:
             or duration is None
             or not (
                 60000 <= duration
-                <= self.settings.conversation_max_duration_seconds * 1000
+                <= (self.settings.outbound_max_duration_seconds if phone else self.settings.conversation_max_duration_seconds) * 1000
             )
         ):
             raise ApiError(

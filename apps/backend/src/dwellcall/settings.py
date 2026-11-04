@@ -8,6 +8,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
 
+from dwellcall.telephony.outbound.settings import OutboundSettings
+
 
 class RuntimeEnvironment(StrEnum):
     DEVELOPMENT = "development"
@@ -105,7 +107,7 @@ class DatabaseConnectionSettings(CommonSettings):
         return self.direct_database_url or self.database_url
 
 
-class ApiSettings(DatabaseConnectionSettings):
+class ApiSettings(OutboundSettings, DatabaseConnectionSettings):
     api_host: str = Field(default="127.0.0.1", min_length=1)
     api_port: int = Field(default=8000, ge=1, le=65_535)
     web_origin: str = "http://localhost:3000"
@@ -165,12 +167,18 @@ class ApiSettings(DatabaseConnectionSettings):
 
     @model_validator(mode="after")
     def validate_private_audio(self) -> Self:
-        if not self.retell_test_audio_enabled:
+        if self.outbound_mock_enabled and self.app_environment is RuntimeEnvironment.PRODUCTION:
+            raise ValueError("Mock calling is limited to development or isolated tests")
+        if self.outbound_enabled:
+            if not (self.outbound_public_base_url and self.outbound_sip_username.get_secret_value() and self.outbound_destination_permissions_confirmed and self.outbound_caller_id_confirmed):
+                raise ValueError("Confirm Telnyx destination permissions/rates and caller ID, and configure the public API origin and SIP username")
+            if self.outbound_agent_id == self.retell_agent_id:
+                raise ValueError("Outbound calling requires a dedicated agent separate from web calls")
+        if not (self.retell_test_audio_enabled or self.outbound_enabled):
             return self
         if not all(
             (
                 self.retell_api_key,
-                self.retell_agent_id,
                 self.retell_websocket_secret,
                 self.llm_api_key,
                 self.admin_token,
@@ -179,7 +187,7 @@ class ApiSettings(DatabaseConnectionSettings):
             raise ValueError(
                 "Private audio requires dedicated Retell, LLM and admin credentials"
             )
-        if self.retell_agent_version is None:
+        if self.retell_test_audio_enabled and (self.retell_agent_version is None or not self.retell_agent_id):
             raise ValueError(
                 "Pin RETELL_AGENT_VERSION to the private dashboard test agent version"
             )
@@ -191,7 +199,7 @@ class ApiSettings(DatabaseConnectionSettings):
             for c in secret.get_secret_value()
         ):
             raise ValueError("RETELL_WEBSOCKET_SECRET must be URL-safe")
-        if not (
+        if self.retell_test_audio_enabled and not (
             0 < self.conversation_reserved_cost_cents
             <= self.conversation_daily_budget_cents
         ):
