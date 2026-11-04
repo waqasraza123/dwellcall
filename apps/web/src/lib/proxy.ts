@@ -23,6 +23,21 @@ export async function forwardResponse(response: Response): Promise<NextResponse>
   if (!response.ok) {
     const code = response.status;
     const messages: Record<string, string> = {
+      BILLING_UNAVAILABLE: "Paid billing is not available yet.",
+      BILLING_APPROVAL_REQUIRED: "Owner approval is required before purchasing or managing a subscription.",
+      BILLING_MODE_MISMATCH: "This billing account belongs to another Stripe environment. The owner must review configuration.",
+      BILLING_CUSTOMER_UNCONFIRMED: "A previous customer creation is unconfirmed. The owner must reconcile it before retrying.",
+      BILLING_CUSTOMER_MISSING: "Choose a paid plan first.",
+      BILLING_PRICE_MISMATCH: "The configured subscription price needs owner review.",
+      BILLING_HISTORY_REVIEW: "Billing history needs owner review before another checkout.",
+      STRIPE_UNAVAILABLE: "Stripe is unavailable. Keep your saved checkout request before retrying.",
+      STRIPE_RESPONSE_INVALID: "The Stripe response could not be confirmed. Keep your saved checkout request.",
+      SUBSCRIPTION_EXISTS: "Manage your existing subscription through the billing portal.",
+      CHECKOUT_REQUEST_CONFLICT: "This checkout request does not match. Refresh billing before continuing.",
+      CHECKOUT_PENDING: "A checkout is active or its result is unconfirmed. Resume it or refresh billing before choosing another plan.",
+      CHECKOUT_UNCONFIRMED: "The checkout result is unconfirmed. The owner must reconcile it before another checkout.",
+      CHECKOUT_FINISHED: "This request has finished. Refresh billing, then clear the completed request before starting another.",
+      CHECKOUT_IDENTITY_INVALID: "The checkout identity needs owner review.",
       INVALID_CREDENTIALS: "That email and password do not match. Please try again.",
       ACCOUNT_UNAVAILABLE: "Account access is unavailable or those details are already registered. Try signing in.",
       ACCOUNT_AUTH_REQUIRED: "Sign in to continue.",

@@ -1,5 +1,24 @@
 # DwellCall project state
 
+## Quantrift-derived Stripe pricing source — 2026-11-05 — UNVERIFIED
+
+Owner authorizes committing and pushing the pricing/billing source, specifications
+and setup guide to `main`. Verification, migrations, services, provider changes
+and deployment remain outside this publication request.
+
+- Owner requested local Quantrift Stripe pricing. Adapted Free/$0, Pro/$29 and
+  Team/$79 monthly USD pricing, Checkout/customer portal, signed webhook receipts
+  and bounded reconciliation to existing DwellCall accounts and Neon. Source
+  checkout read-only; no credentials, customer data or provider IDs copied.
+- Account-specific billing requires existing MFA and approved operator access;
+  payment never grants roles, changes quotas or enables providers. Team seats,
+  tenant memberships, credit metering and plan paywalls are outside this step.
+- New migration 20261105_0011 and Stripe 16.1.0 dependency remain unapplied/
+  uninstalled. Billing is disabled by default; existing environment files kept.
+  Source and compatibility are UNVERIFIED. No checks, services, migrations,
+  provider requests/changes, publication or deployment ran.
+- Owner setup/recovery commands and unexecuted specifications: docs/billing.md.
+
 ## Account authentication source — 2026-11-05 — UNVERIFIED
 
 Owner authorizes committing and pushing the authentication source, specifications

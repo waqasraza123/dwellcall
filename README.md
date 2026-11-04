@@ -19,4 +19,4 @@ Voice conversations powered by [Retell AI](https://www.retellai.com/) and [Telny
 
 **In development.** Demonstrations use fictional properties. Live calling and integrations require setup and acceptance testing.
 
-[Authentication and Neon setup](docs/authentication.md) · [Workspace guide](docs/phase-4.md) · [Calling guide](docs/outbound-calling.md)
+[Stripe pricing and billing](docs/billing.md) · [Authentication and Neon setup](docs/authentication.md) · [Workspace guide](docs/phase-4.md) · [Calling guide](docs/outbound-calling.md)

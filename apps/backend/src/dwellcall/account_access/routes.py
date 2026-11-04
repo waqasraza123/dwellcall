@@ -1,4 +1,3 @@
-import secrets
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, Response
@@ -9,7 +8,7 @@ from dwellcall.account_access.schemas import (
     MfaSetupResponse, MfaStatusResponse, MfaVerifyInput, SignupInput,
 )
 from dwellcall.account_access.service import AccountAccessService
-from dwellcall.errors import ApiError
+from dwellcall.account_access.security import bearer_token, require_account_portal
 from dwellcall.settings import ApiSettings
 
 
@@ -17,14 +16,12 @@ def create_account_router(settings: ApiSettings, sessions: sessionmaker[Session]
     access = AccountAccessService(sessions, settings)
 
     def portal(key: Annotated[str | None, Header(alias="X-Account-Portal-Key")] = None) -> None:
-        expected = settings.account_portal_secret
-        if not settings.account_auth_enabled or expected is None or not key or not secrets.compare_digest(key.encode(), expected.get_secret_value().encode()):
-            raise ApiError(status_code=404, code="ACCOUNT_UNAVAILABLE", message="Account access is unavailable.")
+        require_account_portal(settings, key)
 
     router = APIRouter(prefix="/api/v1/account/auth", dependencies=[Depends(portal)])
 
     def token(authorization: Annotated[str | None, Header()] = None) -> str | None:
-        return authorization[7:] if authorization and authorization.startswith("Bearer ") else None
+        return bearer_token(authorization)
 
     Token = Annotated[str | None, Depends(token)]
 

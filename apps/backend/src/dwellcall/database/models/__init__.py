@@ -1,3 +1,4 @@
+from dwellcall.database.models.billing import BillingAccount, BillingCheckout, BillingEvent
 from dwellcall.database.models.account import Account, AccountAuthEvent, AccountAuthLimit, AccountLoginSession
 from dwellcall.database.models.account_mfa import AccountMfaFactor, AccountMfaChallenge, AccountMfaRecoveryCode
 from dwellcall.database.models.workspace import DiscoveryAttempt, DiscoveryJob, OperatorAction
@@ -14,6 +15,7 @@ from dwellcall.database.models.intelligence import (
 )
 
 __all__ = [
+    "BillingAccount", "BillingCheckout", "BillingEvent",
     "Account", "AccountAuthEvent", "AccountAuthLimit", "AccountLoginSession", "AccountMfaFactor", "AccountMfaChallenge", "AccountMfaRecoveryCode",
     "BrowserConversation",
     "OutboundCall", "OutboundCallEvent", "OutboundSuppression",

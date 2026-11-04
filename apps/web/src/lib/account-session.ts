@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { BackendError } from "./backend";
+import { backendOrigin, BackendError } from "./backend";
 
 export type Account = Readonly<{ id: string; full_name: string; email: string; operator_access: boolean }>;
 export const ACCOUNT_COOKIE = process.env.NODE_ENV === "production" ? "__Host-dwellcall-session" : "dwellcall-session";
@@ -14,17 +14,13 @@ export function parseAccount(value: unknown): Account {
 }
 
 export async function accountBackend(path: string, method = "GET", body?: string, scope: "session" | "mfa" = "session"): Promise<Response> {
-  const raw = process.env.DWELLCALL_API_BASE_URL;
   const key = process.env.DWELLCALL_ACCOUNT_PORTAL_SECRET;
-  if (!raw || !key || key.length < 32) throw new BackendError(503, "Account access is not configured.");
-  let base: URL;
-  try { base = new URL(raw); } catch { throw new BackendError(503, "Account access is not configured."); }
-  if (!["http:", "https:"].includes(base.protocol) || (process.env.NODE_ENV === "production" && base.protocol !== "https:") || base.username || base.password || base.search || base.hash || base.pathname !== "/") throw new BackendError(503, "Account access is not configured.");
+  if (!key || key.length < 32) throw new BackendError(503, "Account access is not configured.");
   const token = (await cookies()).get(scope === "mfa" ? MFA_COOKIE : ACCOUNT_COOKIE)?.value;
-  return fetch(`${base.origin}/api/v1/account/${path}`, {
+  return fetch(`${backendOrigin()}/api/v1/account/${path}`, {
     method, body, cache: "no-store", redirect: "error",
     headers: { "Content-Type": "application/json", "X-Account-Portal-Key": key, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    signal: AbortSignal.timeout(20_000),
+    signal: AbortSignal.timeout(path.startsWith("billing/") && method !== "GET" ? 55_000 : 20_000),
   });
 }
 

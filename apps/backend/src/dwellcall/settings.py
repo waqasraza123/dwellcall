@@ -108,6 +108,35 @@ class DatabaseConnectionSettings(CommonSettings):
 
 
 class ApiSettings(OutboundSettings, DatabaseConnectionSettings):
+    billing_enabled: bool = False
+    stripe_secret_key: SecretStr | None = None
+    stripe_webhook_secret: SecretStr | None = None
+    stripe_pro_price_id: str | None = Field(default=None, pattern=r"^price_[A-Za-z0-9_]+$")
+    stripe_team_price_id: str | None = Field(default=None, pattern=r"^price_[A-Za-z0-9_]+$")
+    stripe_portal_configuration_id: str | None = Field(default=None, pattern=r"^bpc_[A-Za-z0-9_]+$")
+    stripe_portal_pro_configuration_id: str | None = Field(default=None, pattern=r"^bpc_[A-Za-z0-9_]+$")
+    stripe_portal_team_configuration_id: str | None = Field(default=None, pattern=r"^bpc_[A-Za-z0-9_]+$")
+    stripe_live_mode: bool = False
+
+    @model_validator(mode="after")
+    def validate_billing_configuration(self) -> Self:
+        if self.stripe_secret_key:
+            prefix = "sk_live_" if self.stripe_live_mode else "sk_test_"
+            if not self.stripe_secret_key.get_secret_value().startswith(prefix):
+                raise ValueError("STRIPE_SECRET_KEY must match STRIPE_LIVE_MODE")
+        if self.stripe_pro_price_id and self.stripe_pro_price_id == self.stripe_team_price_id:
+            raise ValueError("Pro and Team require different Stripe prices")
+        if self.billing_enabled:
+            if not self.account_auth_enabled:
+                raise ValueError("Billing requires account authentication")
+            if not all((self.stripe_secret_key, self.stripe_webhook_secret, self.stripe_pro_price_id,
+                        self.stripe_team_price_id, self.stripe_portal_configuration_id,
+                        self.stripe_portal_pro_configuration_id, self.stripe_portal_team_configuration_id)):
+                raise ValueError("Billing requires the complete Stripe catalog and webhook configuration")
+            if self.app_environment is RuntimeEnvironment.PRODUCTION and not self.web_origin.startswith("https://"):
+                raise ValueError("Production billing requires an HTTPS WEB_ORIGIN")
+        return self
+
     account_auth_enabled: bool = False
     account_portal_secret: SecretStr | None = Field(default=None, min_length=32)
     account_mfa_encryption_key: SecretStr | None = None
@@ -172,6 +201,13 @@ class ApiSettings(OutboundSettings, DatabaseConnectionSettings):
         return value.rstrip("/")
 
     @field_validator(
+        "stripe_secret_key",
+        "stripe_webhook_secret",
+        "stripe_pro_price_id",
+        "stripe_team_price_id",
+        "stripe_portal_configuration_id",
+        "stripe_portal_pro_configuration_id",
+        "stripe_portal_team_configuration_id",
         "account_portal_secret",
         "account_mfa_encryption_key",
         "retell_api_key",

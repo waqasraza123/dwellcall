@@ -14,6 +14,7 @@ from starlette.middleware.base import RequestResponseEndpoint
 from starlette.middleware.cors import CORSMiddleware
 
 from dwellcall.account_access.routes import create_account_router
+from dwellcall.billing.routes import create_billing_router
 from dwellcall.crm.agent_routes import create_agent_crm_router, create_crm_provider_router
 from dwellcall.crm.routes import create_crm_router
 from dwellcall.crm.settings import CrmSettings
@@ -98,6 +99,7 @@ def create_app(
             raise ValueError("CRM administration requires a strong ADMIN_TOKEN")
         application.include_router(create_crm_router(settings, session_factory, crm))
     application.include_router(create_account_router(settings, session_factory))
+    application.include_router(create_billing_router(settings, session_factory))
     application.include_router(create_crm_provider_router(settings, crm))
     application.include_router(create_agent_crm_router(settings, session_factory, crm))
     application.include_router(create_agent_crm_router(settings, session_factory, crm, provider_name="hubspot"))
@@ -196,7 +198,7 @@ def create_app(
                 return denied
         response = await call_next(request)
         response.headers["X-Correlation-ID"] = str(correlation_id)
-        if request.url.path.startswith(("/api/v1/account", "/api/v1/intelligence", "/api/v1/crm", "/api/v1/outbound", "/api/v1/retell")):
+        if request.url.path.startswith(("/api/v1/billing", "/api/v1/account", "/api/v1/intelligence", "/api/v1/crm", "/api/v1/outbound", "/api/v1/retell")):
             response.headers["Cache-Control"] = "no-store"
         return response
 
