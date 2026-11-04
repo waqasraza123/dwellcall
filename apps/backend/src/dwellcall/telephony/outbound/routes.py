@@ -23,7 +23,7 @@ def create_outbound_router(settings: ApiSettings, service: OutboundCallService) 
         return {
             "available": (settings.outbound_enabled or settings.outbound_mock_enabled) and not controls["calls_paused"],
             "mock": settings.outbound_mock_enabled,
-            "transfer_available": settings.outbound_transfer_enabled and not controls["calls_paused"] and not controls["transfers_paused"],
+            "transfer_available": False,
             "max_duration_seconds": settings.outbound_max_duration_seconds,
             "daily_limit": settings.outbound_daily_limit,
             "countries": sorted(settings.outbound_allowed_countries),

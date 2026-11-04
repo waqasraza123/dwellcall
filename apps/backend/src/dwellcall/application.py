@@ -51,7 +51,7 @@ def create_app(
     from dwellcall.telephony.outbound.service import OutboundCallService
 
     outbound = OutboundCallService(session_factory, settings, RetellOutboundProvider(settings))
-    if settings.retell_test_audio_enabled or settings.outbound_enabled:
+    if settings.retell_test_audio_enabled or settings.outbound_enabled or settings.browser_text_enabled:
         from dwellcall.consultant.catalog import load_catalog
         from dwellcall.consultant.graph import PropertyConsultant
         consultant = PropertyConsultant(settings, load_catalog(settings))
@@ -59,6 +59,12 @@ def create_app(
         from dwellcall.telephony.retell.provider import RetellGateway
 
         gateway = RetellGateway(settings)
+
+    from dwellcall.conversations.provider import BrowserProvider
+    from dwellcall.conversations.routes import create_conversation_router
+    from dwellcall.conversations.service import BrowserConversationService
+
+    browser = BrowserConversationService(session_factory, settings, consultant, BrowserProvider(settings, gateway) if gateway else None)
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -94,11 +100,12 @@ def create_app(
     application.include_router(create_agent_crm_router(settings, session_factory, crm))
     application.include_router(create_agent_crm_router(settings, session_factory, crm, provider_name="hubspot"))
     application.include_router(create_outbound_router(settings, outbound))
+    application.include_router(create_conversation_router(settings, browser))
     if gateway is not None:
         from dwellcall.telephony.retell.routes import create_retell_router
 
         application.include_router(
-            create_retell_router(settings, session_factory, gateway, consultant, outbound)
+            create_retell_router(settings, session_factory, gateway, consultant, outbound, browser)
         )
     listing = listing_settings or ListingSettings()
     if listing.listing_intelligence_enabled:

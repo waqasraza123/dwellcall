@@ -1,10 +1,15 @@
+import asyncio
 import json
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
 
 from dwellcall.settings import ApiSettings
+from dwellcall.errors import ApiError
 from dwellcall.telephony.outbound.provider import OutboundProviderError, RetellOutboundProvider
+from dwellcall.telephony.retell.provider import RetellGateway
 from tests.outbound.helpers import call_input, phone_call
 
 
@@ -38,7 +43,7 @@ def test_preflight_is_read_only_and_requires_imported_identity(outbound_settings
     assert seen[1].url.params["version"] == "3"
 
 
-@pytest.mark.parametrize("change", [{"data_storage_setting": "everything"}, {"max_call_duration_ms": 181000}, {"ring_duration_ms": 60000}, {"version": 4}, {"response_engine": {"type": "retell-llm"}}, {"webhook_events": []}, {"contact_memory_config": {"enable_read": True}}])
+@pytest.mark.parametrize("change", [{"data_storage_setting": "everything"}, {"max_call_duration_ms": 181000}, {"ring_duration_ms": 60000}, {"version": 4}, {"version": True}, {"is_published": False}, {"is_published": None}, {"response_engine": {"type": "retell-llm"}}, {"webhook_events": []}, {"contact_memory_config": {"enable_read": True}}, {"contact_memory_config": {}}, {"voicemail_option": {"action": {"type": "bridge_transfer", "transfer_destination": "+12025550125"}}}])
 def test_unsafe_agent_configuration_never_originates(outbound_settings: ApiSettings, change: dict[str, object]) -> None:
     def handle(request: httpx.Request) -> httpx.Response:
         assert request.method == "GET"
@@ -101,3 +106,57 @@ def test_malformed_trunk_data_produces_an_actionable_preflight_rejection(outboun
         with pytest.raises(OutboundProviderError) as caught:
             RetellOutboundProvider(outbound_settings, client).preflight()
         assert caught.value.code == "RETELL_CONFIGURATION_INVALID" and not caught.value.outcome_unknown
+
+
+@pytest.mark.parametrize("uri", ["sip.telnyx.com.evil.test", "user@sip.telnyx.com", "sip.telnyx.com/route", "sip.telnyx.com?route=other", "sip.telnyx.com:9999"])
+def test_trunk_route_must_match_the_authorized_telnyx_endpoint(outbound_settings: ApiSettings, uri: str) -> None:
+    def handle(request: httpx.Request) -> httpx.Response:
+        value = phone()
+        value["sip_outbound_trunk_config"]["termination_uri"] = uri
+        return httpx.Response(200, json=value)
+    with httpx.Client(base_url="https://api.retellai.com", transport=httpx.MockTransport(handle)) as client:
+        with pytest.raises(OutboundProviderError):
+            RetellOutboundProvider(outbound_settings, client).preflight()
+
+
+def test_documented_default_webhook_events_are_accepted(outbound_settings: ApiSettings) -> None:
+    def handle(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={**agent(outbound_settings), "webhook_events": None} if request.url.path.startswith("/get-agent/") else phone())
+    with httpx.Client(base_url="https://api.retellai.com", transport=httpx.MockTransport(handle)) as client:
+        RetellOutboundProvider(outbound_settings, client).preflight()
+
+
+@pytest.mark.parametrize("result", [
+    {"items": [], "has_more": True},
+    {"items": [phone_call("different", "proof").model_dump()], "has_more": False},
+    {"items": [phone_call("reservation", "wrong-proof").model_dump()], "has_more": False},
+    {"items": [phone_call("reservation", "proof").model_dump()] * 2, "has_more": False},
+])
+def test_incomplete_or_mismatched_lookup_never_binds_or_dials(outbound_settings: ApiSettings, result: dict[str, object]) -> None:
+    def handle(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v3/list-calls"
+        assert json.loads(request.content)["filter_criteria"]["metadata"] == [{"type": "string", "key": "dwellcall_outbound_id", "value": "reservation"}]
+        return httpx.Response(200, json=result)
+    with httpx.Client(base_url="https://api.retellai.com", transport=httpx.MockTransport(handle)) as client:
+        with pytest.raises(OutboundProviderError, match="lookup is incomplete"):
+            RetellOutboundProvider(outbound_settings, client).find("reservation", "proof")
+
+
+@pytest.mark.parametrize(("published", "url"), [(False, None), (None, None), (True, "wss://other.test/llm")])
+def test_phone_socket_authorization_rechecks_publication_and_backend_url(outbound_settings: ApiSettings, published: bool | None, url: str | None) -> None:
+    async def check() -> None:
+        gateway = RetellGateway(outbound_settings)
+        call = phone_call("reservation", "proof", call_status="ongoing")
+        gateway.retrieve = AsyncMock(return_value=call)
+        gateway._client.agent.retrieve = AsyncMock(return_value=SimpleNamespace(
+            agent_id=call.agent_id, version=call.agent_version,
+            is_published=published, max_call_duration_ms=180000,
+            response_engine=SimpleNamespace(type="custom-llm", llm_websocket_url=url or agent(outbound_settings)["response_engine"]["llm_websocket_url"]),
+        ))
+        try:
+            with pytest.raises(ApiError):
+                await gateway.authorize(call.call_id)
+            gateway._client.agent.retrieve.assert_awaited_once_with("agent_outbound", version=3)
+        finally:
+            await gateway.close()
+    asyncio.run(check())

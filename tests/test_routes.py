@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from dwellcall.consultant.graph import PropertyConsultant
+from dwellcall.conversations.service import BrowserConversationService
 from dwellcall.errors import ApiError, api_error_handler
 from dwellcall.settings import ApiSettings
 from dwellcall.telephony.retell import routes
@@ -20,12 +21,13 @@ from dwellcall.telephony.retell.service import AudioSessionService
 
 def application(
     monkeypatch: pytest.MonkeyPatch, settings: ApiSettings,
-    consultant: PropertyConsultant,
+    consultant: PropertyConsultant, browser: BrowserConversationService | None = None,
 ) -> tuple[FastAPI, Mock, Mock]:
     gateway = Mock(spec=RetellGateway)
     gateway.authorize = AsyncMock(return_value=RetellCall(
         call_id="call_private", agent_id="agent_dwellcall_test", agent_version=0,
         call_type="web_call", call_status="ongoing",
+        metadata={"dwellcall_browser_id": "synthetic"} if browser else None,
     ))
     service = Mock(spec=AudioSessionService)
     service.is_active.return_value = True
@@ -35,7 +37,7 @@ def application(
     async def error_handler(request: Request, error: ApiError) -> JSONResponse:
         return await api_error_handler(request, error)
     configured = settings.model_copy(update={"retell_test_audio_enabled": True})
-    app.include_router(routes.create_retell_router(configured, Mock(), gateway, consultant))
+    app.include_router(routes.create_retell_router(configured, Mock(), gateway, consultant, browser=browser))
     return app, gateway, service
 
 
@@ -122,4 +124,21 @@ def test_completed_closing_turn_sets_retell_end_call_without_releasing_reservati
             final = socket.receive_json()
             assert final["content_complete"] is True and final["end_call"] is True
     service.finalize.assert_not_called()
+
+
+def test_browser_voice_reuses_its_reservation_and_selected_property_scenario(monkeypatch, settings):
+    class Consultant:
+        def greeting(self, scenario=None):
+            return "Fictional " + str(scenario)
+    browser = Mock(spec=BrowserConversationService)
+    browser.apply.return_value = ("browser_reserved_audio", "buying")
+    browser.active.return_value = True
+    app, _, audio = application(monkeypatch, settings, Consultant(), browser)
+    with TestClient(app) as client:
+        with client.websocket_connect(f"/api/v1/retell/llm/{'a' * 43}/call_private") as socket:
+            assert socket.receive_json()["response_type"] == "config"
+            assert socket.receive_json()["content"] == "Fictional buying"
+    audio.reserve.assert_not_called()
+    audio.disconnect.assert_called_once_with("browser_reserved_audio")
+    assert browser.apply.call_args.kwargs == {"admit": True}
     service.disconnect.assert_called_once_with("call_private")

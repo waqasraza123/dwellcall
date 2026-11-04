@@ -1,5 +1,35 @@
 # DwellCall project state
 
+## Publication authorization — 2026-11-04
+
+Owner authorizes committing and pushing all pending outbound fixes, hero voice/text
+chat, permanent AI-only policy, specifications and setup guides to `main`.
+Implementation remains UNVERIFIED. This does not authorize checks, migrations,
+services, provider/account changes, paid calls or deployment commands.
+
+## Permanent AI-only operation — 2026-11-04
+
+Owner explicitly requires human transfers to remain disabled permanently.
+DwellCall is an AI-native voice platform operated only by AI agents. Human
+requests must receive that plain explanation, without a human connection,
+callback, escalation promise or transfer confirmation. This supersedes earlier
+notes describing future transfer prerequisites. Implementation remains UNVERIFIED.
+
+## Hero conversation feature — 2026-11-04 — UNVERIFIED
+
+Owner requests HVACLine-derived voice/text chat in the homepage hero with a new
+visual style. Preserve the existing operator access and shared conversation limits;
+keep live browser flags disabled until owner setup/acceptance. Source includes
+browser admission migration 0009; it has not been applied. HVACLine stays read-only.
+Owner configuration and commands: `docs/browser-conversations.md`.
+
+## Outbound completion constraints — 2026-11-04 — UNVERIFIED
+
+Owner restricts outbound calling to US destinations and requires transfer to stay
+disabled. This turn permits source fixes/specifications only: no verification,
+services, migrations, provider/account changes, calls, commits or publication.
+Owner validation and required environment names: `docs/outbound-calling.md`.
+
 ## Retell + Telnyx outbound source — 2026-11-04 — UNVERIFIED
 
 Owner now authorizes committing and pushing all pending outbound source, focused
@@ -14,8 +44,8 @@ This does not authorize checks, migrations, services, provider activation or cal
   phone identities, webhook lifecycle, lookup/binding, conservative unknown handling
   and operator carrier-completion recovery are implemented in source.
 - Phone WebSockets reuse the existing consultant, spoken transcript and streaming
-  cancellation. Fixed human transfer requires separate spoken confirmation and
-  defaults off; outbound REFER/PSTN compatibility and carrier-leg caps are unverified.
+  cancellation. Human transfer is permanently disabled by owner decision; legacy
+  carrier evidence remains available for conservative recovery only.
 - Existing Next.js workspace adds `/calls`, authenticated controls/history/recovery
   and explicit development simulation without provider calls. Discovery never dials;
   GHL, FUB and HubSpot paths remain present.

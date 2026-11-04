@@ -2,62 +2,57 @@ import asyncio
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from pydantic import ValidationError
 
 from dwellcall.consultant.catalog import PropertyRequirements, load_catalog
 from dwellcall.consultant.graph import PropertyConsultant
-from dwellcall.consultant.state import ConsultationSession, RequirementExtraction, TRANSFER_PROMPT
+from dwellcall.consultant.state import AI_ONLY_HANDOFF_REPLY, ConsultationSession, RequirementExtraction
 from dwellcall.settings import ApiSettings
-from dwellcall.telephony.retell.schemas import Utterance
+from dwellcall.telephony.retell.schemas import Response, Utterance
 
 
-def handoff(session: ConsultationSession, settings: ApiSettings) -> None:
-    session.commit(session.propose(RequirementExtraction(requirements=PropertyRequirements(), intent="handoff"), [Utterance(role="user", content="Please connect me to a human")], settings))
-
-
-def test_transfer_requires_an_entire_spoken_prompt_and_separate_yes(settings: ApiSettings) -> None:
-    session = ConsultationSession(transfer_enabled=True)
-    handoff(session, settings)
-    assert session.pending_transfer_prompt == TRANSFER_PROMPT and not session.transfer_requested
-    session.commit(session.propose(RequirementExtraction(requirements=PropertyRequirements()), [
-        Utterance(role="agent", content=TRANSFER_PROMPT), Utterance(role="user", content="yes"),
-    ], settings))
-    assert session.transfer_requested and not session.end_call
-
-
-@pytest.mark.parametrize(("spoken", "reply"), [(TRANSFER_PROMPT[:25], "yes"), ("I can help with properties", "yes"), (TRANSFER_PROMPT, "yes but call another number"), (TRANSFER_PROMPT, "no"), (TRANSFER_PROMPT, "maybe")])
-def test_interruption_ambiguity_and_model_selected_destinations_cannot_authorize_transfer(settings: ApiSettings, spoken: str, reply: str) -> None:
-    session = ConsultationSession(transfer_enabled=True)
-    handoff(session, settings)
-    session.commit(session.propose(RequirementExtraction(requirements=PropertyRequirements()), [Utterance(role="agent", content=spoken), Utterance(role="user", content=reply)], settings))
-    assert not session.transfer_requested
-
-
-def test_cancelled_phone_readback_never_creates_transfer_permission(settings: ApiSettings) -> None:
+@pytest.mark.parametrize("message", [
+    "A human please", "Can I speak to a human?", "Connect me to a real person",
+    "Transfer me", "Please let me talk to a live agent", "I need a supervisor",
+])
+def test_human_requests_receive_the_ai_only_explanation_without_model_calls(settings: ApiSettings, message: str) -> None:
     async def check() -> None:
         consultant = PropertyConsultant(settings, load_catalog(settings))
         consultant._extractor = AsyncMock()
-        consultant._extractor.ainvoke.return_value = RequirementExtraction(requirements=PropertyRequirements(scenario="renting"), intent="handoff")
+        consultant._extractor.ainvoke.side_effect = AssertionError("Human requests must not depend on extraction")
         consultant._model = Mock()
-        consultant._model.astream.side_effect = AssertionError("Handoff readback should use the existing deterministic node")
-        session = ConsultationSession(transfer_enabled=True)
-        stream = consultant.stream([Utterance(role="user", content="A human please")], session)
+        consultant._model.astream.side_effect = AssertionError("Human requests must use the fixed explanation")
+        session = ConsultationSession()
         try:
-            assert await anext(stream) == TRANSFER_PROMPT
-            await stream.aclose()
-            assert session.pending_transfer_prompt is None and not session.transfer_requested
+            reply = "".join([part async for part in consultant.stream([Utterance(role="user", content=message)], session)])
+            assert reply == AI_ONLY_HANDOFF_REPLY and not session.end_call
         finally:
-            await stream.aclose()
             await consultant.close()
     asyncio.run(check())
 
 
-def test_phone_graph_reuses_existing_requirements_across_turns(settings: ApiSettings) -> None:
+def test_model_classified_handoff_receives_the_same_permanent_explanation(settings: ApiSettings) -> None:
+    session = ConsultationSession()
+    update = session.propose(RequirementExtraction(requirements=PropertyRequirements(), intent="handoff"), [Utterance(role="user", content="Could somebody else take over?")], settings)
+    assert update.reply == AI_ONLY_HANDOFF_REPLY and not update.end_call
+
+
+def test_yes_after_a_legacy_transfer_question_cannot_authorize_a_transfer(settings: ApiSettings) -> None:
+    session = ConsultationSession()
+    update = session.propose(RequirementExtraction(requirements=PropertyRequirements()), [Utterance(role="agent", content="Would you like to connect to a human?"), Utterance(role="user", content="yes")], settings)
+    session.commit(update)
+    with pytest.raises(ValidationError):
+        Response(response_id=1, content="", content_complete=True, transfer_number="+12025550125")
+
+
+@pytest.mark.parametrize(("scenario", "budget", "bedrooms"), [("renting", 2300, 1), ("buying", 700000, 3), ("luxury", 1500000, 4)])
+def test_phone_graph_reuses_existing_requirements_across_turns(settings: ApiSettings, scenario: str, budget: int, bedrooms: int) -> None:
     async def check() -> None:
         consultant = PropertyConsultant(settings, load_catalog(settings))
         consultant._extractor = AsyncMock()
-        needs = PropertyRequirements(scenario="buying", max_budget=700000, bedrooms=3)
+        needs = PropertyRequirements.model_validate({"scenario": scenario, "max_budget": budget, "bedrooms": bedrooms})
         consultant._extractor.ainvoke.return_value = RequirementExtraction(requirements=needs, intent="review")
-        session = ConsultationSession(transfer_enabled=True)
+        session = ConsultationSession(requirements=PropertyRequirements.model_validate({"scenario": scenario}))
         try:
             parts = [part async for part in consultant.stream([Utterance(role="user", content="Please recap my purchase requirements")], session)]
             assert session.requirements == needs and session.pending_readback == "".join(parts)

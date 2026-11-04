@@ -58,10 +58,12 @@ class RetellGateway:
             raise ValueError("Retell agent configuration is unavailable")
         agent = await self._client.agent.retrieve(agent_id, version=version)
         duration = agent.max_call_duration_ms
+        expected_socket = (self.settings.outbound_public_base_url or "").replace("https://", "wss://", 1) + "/api/v1/retell/llm/" + (self.settings.retell_websocket_secret.get_secret_value() if self.settings.retell_websocket_secret else "")
         if (
             agent.agent_id != call.agent_id
             or agent.version != call.agent_version
             or agent.response_engine.type != "custom-llm"
+            or (phone and (agent.is_published is not True or agent.response_engine.llm_websocket_url != expected_socket))
             or duration is None
             or not (
                 60000 <= duration

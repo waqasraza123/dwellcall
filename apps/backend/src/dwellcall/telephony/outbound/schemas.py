@@ -69,7 +69,14 @@ class CallResponse(BaseModel):
 class ControlsInput(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     calls_paused: bool
-    transfers_paused: bool
+    transfers_paused: Literal[True]
+
+    @field_validator("transfers_paused", mode="before")
+    @classmethod
+    def transfers_stay_disabled(cls, value: object) -> object:
+        if value is not True:
+            raise ValueError("Human transfers are permanently unavailable")
+        return value
 
 
 class SuppressInput(BaseModel):

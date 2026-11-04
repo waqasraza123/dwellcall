@@ -16,6 +16,7 @@ from dwellcall.consultant.graph import PropertyConsultant
 from dwellcall.consultant.catalog import PropertyRequirements
 from dwellcall.consultant.state import ConsultationSession
 from dwellcall.consultant.spoken import normalized_speech
+from dwellcall.conversations.service import BrowserConversationService
 from dwellcall.errors import ApiError
 from dwellcall.settings import ApiSettings
 from dwellcall.telephony.retell.provider import RetellGateway
@@ -53,6 +54,7 @@ def create_retell_router(
     gateway: RetellGateway,
     consultant: PropertyConsultant | None,
     outbound: OutboundCallService | None = None,
+    browser: BrowserConversationService | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/v1/retell")
     service = AudioSessionService(sessions, settings)
@@ -78,6 +80,8 @@ def create_retell_router(
         if call.call_status in {"ended", "error", "not_connected"}:
             if call.call_type == "phone_call" and outbound is not None:
                 await run_in_threadpool(outbound.apply, call, "operator_refresh")
+            elif browser is not None and (call.metadata or {}).get("dwellcall_browser_id"):
+                await run_in_threadpool(browser.apply, call)
             else:
                 await run_in_threadpool(service.finalize, call.call_id, call.agent_id)
         return {"call_status": call.call_status}
@@ -124,7 +128,9 @@ def create_retell_router(
             await run_in_threadpool(outbound.apply, event.call, event.event, outbound.event_digest(bytes(body)))
         else:
             gateway.validate_identity(event.call, event.call.call_id)
-            if event.event in {"call_ended", "call_analyzed"}:
+            if browser is not None and (event.call.metadata or {}).get("dwellcall_browser_id"):
+                await run_in_threadpool(browser.apply, event.call)
+            elif event.event in {"call_ended", "call_analyzed"}:
                 await run_in_threadpool(service.finalize, event.call.call_id, event.call.agent_id)
         return {"received": True}
 
@@ -138,6 +144,7 @@ def create_retell_router(
             return
         reserved = False
         phone = False
+        browser_call = False
         audio_id = call_id
         response_task: asyncio.Task[None] | None = None
         send_lock = asyncio.Lock()
@@ -171,17 +178,9 @@ def create_retell_router(
                         ))
                     if event.response_id != last_response_id:
                         return
-                    transfer_number = None
-                    if phone and outbound is not None and conversation.transfer_requested:
-                        proof = outbound.event_digest(event.model_dump_json().encode())
-                        try:
-                            transfer_number = await run_in_threadpool(outbound.reserve_transfer, audio_id, proof)
-                        except ApiError:
-                            await send(Response(response_id=event.response_id, content="The transfer is unavailable. I can continue helping with the fictional properties.", content_complete=True))
-                            return
                     await send(Response(
                         response_id=event.response_id, content="", content_complete=True,
-                        end_call=conversation.end_call, transfer_number=transfer_number,
+                        end_call=conversation.end_call,
                     ))
             except asyncio.CancelledError:
                 raise
@@ -200,18 +199,25 @@ def create_retell_router(
                 raise ApiError(status_code=503, code="CONSULTANT_DISABLED", message="The consultant is disabled")
             call = await gateway.authorize(call_id)
             phone = call.call_type == "phone_call"
+            browser_call = not phone and bool((call.metadata or {}).get("dwellcall_browser_id"))
             if phone:
                 if outbound is None:
                     raise ApiError(status_code=403, code="PHONE_CALL_DISABLED", message="Phone calls are disabled")
                 audio_id, scenario = await run_in_threadpool(outbound.admit_phone, call)
                 reserved = True
                 conversation.requirements = PropertyRequirements.model_validate({"scenario": scenario})
-                conversation.transfer_enabled = await run_in_threadpool(outbound.transfer_available)
                 remaining = await run_in_threadpool(outbound.remaining_seconds, audio_id)
             else:
                 if not settings.retell_test_audio_enabled:
                     raise ApiError(status_code=403, code="WEB_CALL_DISABLED", message="Web calls are disabled")
-                scenario = None
+                if browser_call:
+                    if browser is None:
+                        raise ApiError(status_code=403, code="BROWSER_CALL_DISABLED", message="Browser calls are disabled")
+                    audio_id, scenario = await run_in_threadpool(browser.apply, call, admit=True)
+                    reserved = True
+                    conversation.requirements = PropertyRequirements.model_validate({"scenario": scenario})
+                else:
+                    scenario = None
                 remaining = float(settings.conversation_max_duration_seconds)
             if call.start_timestamp is not None:
                 elapsed = datetime.now(UTC).timestamp() - call.start_timestamp / 1000
@@ -222,20 +228,32 @@ def create_retell_router(
                     code="CALL_EXPIRED",
                     message="The conversation duration has elapsed",
                 )
-            if not phone:
+            if not phone and not browser_call:
                 await run_in_threadpool(service.reserve, call_id, call.agent_id)
                 reserved = True
             await websocket.accept()
             await websocket.send_json(ConfigResponse().model_dump())
             await send(Response(
                 response_id=0,
-                content=consultant.greeting(scenario) if phone else consultant.greeting(),
+                content=consultant.greeting(scenario) if phone or browser_call else consultant.greeting(),
                 content_complete=True,
             ))
             try:
                 async with asyncio.timeout(remaining):
                     while True:
-                        raw = await websocket.receive_text()
+                        active_service = outbound.active if phone and outbound else browser.active if browser_call and browser else None
+                        if active_service is not None and not await run_in_threadpool(active_service, audio_id):
+                            await cancel_response(response_task)
+                            response_task = None
+                            await send(Response(response_id=max(last_response_id, 0), content="This demonstration has ended. Goodbye.", content_complete=True, end_call=True))
+                            break
+                        try:
+                            if phone or browser_call:
+                                raw = await asyncio.wait_for(websocket.receive_text(), timeout=1)
+                            else:
+                                raw = await websocket.receive_text()
+                        except TimeoutError:
+                            continue
                         if len(raw.encode("utf-8")) > MAX_MESSAGE_BYTES:
                             await websocket.close(code=1009)
                             break
@@ -251,6 +269,8 @@ def create_retell_router(
                             gateway.validate_identity(event.call, call_id)
                             if phone and outbound is not None:
                                 await run_in_threadpool(outbound.validate_phone_details, audio_id, event.call)
+                            elif browser_call and browser is not None:
+                                await run_in_threadpool(browser.validate_details, audio_id, event.call)
                         elif isinstance(event, UpdateOnly):
                             users = tuple(
                                 turn.content
@@ -270,7 +290,7 @@ def create_retell_router(
                             if (
                                 response_count > settings.conversation_max_responses
                                 or not await run_in_threadpool(
-                                    outbound.active if phone and outbound is not None else service.is_active, audio_id
+                                    outbound.active if phone and outbound is not None else browser.active if browser_call and browser is not None else service.is_active, audio_id
                                 )
                             ):
                                 await send(Response(
@@ -309,6 +329,6 @@ def create_retell_router(
                 if phone and outbound is not None:
                     await run_in_threadpool(outbound.disconnect, audio_id)
                 else:
-                    await run_in_threadpool(service.disconnect, call_id)
+                    await run_in_threadpool(service.disconnect, audio_id)
 
     return router

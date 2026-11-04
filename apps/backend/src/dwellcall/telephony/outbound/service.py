@@ -74,6 +74,13 @@ class OutboundCallService:
             fingerprint=digest or uuid4().hex, created_at=datetime.now(UTC),
         ))
 
+    @staticmethod
+    def _stop_requested(session: Session, row: OutboundCall) -> bool:
+        return session.scalar(select(OutboundCallEvent.id).where(
+            OutboundCallEvent.call_id == row.id,
+            OutboundCallEvent.kind == "operator_stop_requested",
+        ).limit(1)) is not None
+
     def _suppressed(self, session: Session, number: str) -> bool:
         if number in self.settings.suppressed_numbers or session.get(OutboundSuppression, self._hash("destination", number)) is not None:
             return True
@@ -121,8 +128,6 @@ class OutboundCallService:
             call_id = uuid4()
             audio_id = "outbound_" + str(call_id)
             cost = self.settings.outbound_reserved_cost_cents
-            if self.settings.outbound_transfer_enabled:
-                cost += self.settings.outbound_transfer_reserved_cost_cents
             AudioSessionService.reserve_in_session(
                 session, audio_id, self.settings.outbound_agent_id or "", now,
                 cost=cost, daily_limit=self.settings.outbound_daily_limit,
@@ -234,10 +239,12 @@ class OutboundCallService:
                 if session.get(OutboundSuppression, row.destination_hash) is None:
                     session.add(OutboundSuppression(destination_hash=row.destination_hash, created_at=datetime.now(UTC)))
             connected_reasons = {"user_hangup", "agent_hangup", "user_requested_dnc", "max_duration_reached", "inactivity", "manual_stopped", "call_transfer", "transfer_bridged"}
-            if call.start_timestamp is not None and (call.call_status == "ongoing" or (call.call_status == "ended" and reason in connected_reasons)):
+            if row.started_at is None and call.start_timestamp is not None and (call.call_status == "ongoing" or (call.call_status == "ended" and reason in connected_reasons)):
                 row.started_at = datetime.fromtimestamp(call.start_timestamp / 1000, UTC)
             if call.duration_ms is not None:
                 row.duration_seconds = max(row.duration_seconds or 0, call.duration_ms // 1000)
+            elif call.call_status in {"ended", "error", "not_connected"} and call.start_timestamp is not None and call.end_timestamp is not None:
+                row.duration_seconds = max(row.duration_seconds or 0, (call.end_timestamp - call.start_timestamp) // 1000)
             transfer_evidence = reason in {"call_transfer", "transfer_bridged"}
             if transfer_evidence:
                 expected = self.settings.outbound_human_number.get_secret_value()
@@ -273,7 +280,7 @@ class OutboundCallService:
                                 "error_llm_websocket_lost_connection": "RETELL_LLM_CONNECTION_LOST",
                             }.get(reason or "", "RETELL_CALL_FAILED")
                         self._finish(session, row)
-                elif row.status not in {"transferred", "transfer_unconfirmed"}:
+                elif row.status not in {"transferred", "transfer_unconfirmed"} and not self._stop_requested(session, row):
                     if call.call_status == "ongoing":
                         row.status = "in_progress"
                     elif row.status == "reserved":
@@ -348,7 +355,7 @@ class OutboundCallService:
         with self.sessions() as session, session.begin():
             guard = self._lock(session)
             row = self._row(session, call_id)
-            if not self.settings.outbound_enabled or guard.outbound_paused or row.mock or row.socket_admitted or row.finalized_at is not None or call.call_status not in {"registered", "ongoing"} or row.transfer_status != "not_requested":
+            if not self.settings.outbound_enabled or guard.outbound_paused or row.mock or row.socket_admitted or row.finalized_at is not None or self._stop_requested(session, row) or call.call_status not in {"registered", "ongoing"} or row.transfer_status != "not_requested":
                 raise ApiError(status_code=409, code="OUTBOUND_SOCKET_NOT_ADMITTED", message="This phone conversation is disabled, inactive or already admitted")
             if not call.to_number:
                 raise unavailable()
@@ -395,15 +402,7 @@ class OutboundCallService:
                 self._event(session, row, "phone_socket_disconnected")
 
     def reserve_transfer(self, audio_id: str, confirmation_hash: str) -> str:
-        with self.sessions() as session, session.begin():
-            guard = self._lock(session)
-            row = session.scalar(select(OutboundCall).where(OutboundCall.audio_session_id == audio_id).with_for_update())
-            if row is None or row.mock or row.finalized_at is not None or row.status != "in_progress" or row.transfer_status != "not_requested" or not self.settings.outbound_transfer_enabled or guard.transfer_paused or guard.outbound_paused:
-                raise ApiError(status_code=409, code="OUTBOUND_TRANSFER_DISABLED", message="Human transfer is unavailable for this call")
-            row.transfer_status = "requested"
-            row.transfer_confirmation_hash = confirmation_hash
-            self._event(session, row, "caller_confirmed_fixed_destination_transfer")
-            return self.settings.outbound_human_number.get_secret_value()
+        raise ApiError(status_code=409, code="OUTBOUND_TRANSFER_DISABLED", message="Human transfers are permanently unavailable; DwellCall is operated only by AI agents")
 
     def suppress_call(self, audio_id: str) -> None:
         with self.sessions() as session, session.begin():
@@ -425,18 +424,18 @@ class OutboundCallService:
             guard = self._lock(session)
             if values is not None:
                 guard.outbound_paused = values.calls_paused
-                guard.transfer_paused = values.transfers_paused
-            return {"calls_paused": guard.outbound_paused, "transfers_paused": guard.transfer_paused}
+                guard.transfer_paused = True
+            return {"calls_paused": guard.outbound_paused, "transfers_paused": True}
 
     def transfer_available(self) -> bool:
-        controls = self.controls()
-        return self.settings.outbound_transfer_enabled and not controls["calls_paused"] and not controls["transfers_paused"]
+        return False
 
     def active(self, audio_id: str) -> bool:
         with self.sessions() as session:
             guard = session.get(AudioAdmissionGuard, 1)
             audio = session.get(AudioSession, audio_id)
-            return bool(guard and not guard.outbound_paused and audio and audio.status == "active")
+            row = session.scalar(select(OutboundCall).where(OutboundCall.audio_session_id == audio_id))
+            return bool(self.settings.outbound_enabled and guard and not guard.outbound_paused and audio and audio.status == "active" and row and row.finalized_at is None and not self._stop_requested(session, row))
 
     def stop(self, call_id: UUID) -> CallResponse:
         with self.sessions() as session, session.begin():
@@ -445,13 +444,23 @@ class OutboundCallService:
             if row.finalized_at is not None:
                 return self._response(row)
             provider_id, mock = row.provider_call_id, row.mock
+            self._event(session, row, "operator_stop_requested")
+            if row.send_started_at is None:
+                row.status = "failed"
+                self._finish(session, row)
+                self._event(session, row, "operator_cancelled_before_send")
+                return self._response(row)
             row.status = "unknown"
             self._finish(session, row, uncertain=True)
-            self._event(session, row, "operator_stop_requested")
         if mock:
             return self.carrier_ended(call_id)
         if not provider_id:
-            raise unavailable("Reconcile the unknown provider call before requesting stop; the reservation remains held")
+            recovered = self.refresh(call_id)
+            if recovered.terminal:
+                return recovered
+            provider_id = recovered.provider_call_id
+            if not provider_id:
+                raise unavailable("The provider call is still unconfirmed; reconcile and request stop again. The reservation remains held")
         try:
             self.provider.stop(provider_id)
         except OutboundProviderError as error:

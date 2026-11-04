@@ -22,6 +22,9 @@ export function pendingRequest(storage: Pick<Storage, "getItem">): string | null
   if (value !== null && !UUID_PATTERN.test(value)) throw new Error("The saved call request is invalid. Inspect call history before clearing it.");
   return value;
 }
+export function unresolvedCall(history: OutboundCall[]): OutboundCall | null {
+  return history.find(call => !call.terminal) ?? null;
+}
 export async function requestCall(requestId: string, phone: string, scenario: Scenario): Promise<OutboundCall> {
   const result = await callRequest("calls", "POST", {
     request_id: requestId, phone_number: phone, scenario, consent: true,

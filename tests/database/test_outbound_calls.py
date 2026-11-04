@@ -5,6 +5,7 @@ from unittest.mock import Mock
 from uuid import UUID
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -16,6 +17,7 @@ from dwellcall.telephony.outbound.schemas import ControlsInput
 from dwellcall.telephony.outbound.service import OutboundCallService
 from dwellcall.telephony.retell.service import AudioSessionService
 from tests.outbound.helpers import call_input, phone_call
+from tests.outbound.test_api import application
 
 
 def service(sessions: sessionmaker[Session], settings: ApiSettings) -> tuple[OutboundCallService, Mock]:
@@ -179,16 +181,11 @@ def test_spending_and_recipient_quotas_are_not_refunded(sessions, outbound_setti
 
 
 def test_transfer_acceptance_never_releases_a_carrier_leg_or_claims_human_answer(sessions, outbound_settings):
-    configured = ApiSettings.model_validate({
-        **outbound_settings.model_dump(), "outbound_transfer_enabled": True,
-        "outbound_human_number": "+12025550125", "outbound_transfer_compatibility_confirmed": True,
-        "outbound_transfer_carrier_limit_confirmed": True, "outbound_transfer_reserved_cost_cents": 100,
-    })
+    configured = outbound_settings.model_copy(update={"outbound_human_number": "+12025550125"})
     calls, _ = service(sessions, configured)
     result = calls.create(call_input())
     provider_call = receipt(sessions, result.id, call_status="ongoing", start_timestamp=int(datetime.now(UTC).timestamp() * 1000))
     audio_id, _ = calls.admit_phone(provider_call)
-    assert calls.reserve_transfer(audio_id, "confirmation-digest") == "+12025550125"
     with pytest.raises(ApiError):
         calls.reserve_transfer(audio_id, "confirmation-digest")
     final = provider_call.model_copy(update={"call_status": "ended", "disconnection_reason": "call_transfer", "transfer_destination": "+12025550125"})
@@ -259,15 +256,119 @@ def test_overdue_reservation_never_expires_into_a_new_dial(sessions, outbound_se
 
 
 def test_transfer_emergency_pause_is_checked_at_confirmation_time(sessions, outbound_settings):
-    configured = ApiSettings.model_validate({
-        **outbound_settings.model_dump(), "outbound_transfer_enabled": True,
-        "outbound_human_number": "+12025550125", "outbound_transfer_compatibility_confirmed": True,
-        "outbound_transfer_carrier_limit_confirmed": True, "outbound_transfer_reserved_cost_cents": 100,
-    })
-    calls, _ = service(sessions, configured)
+    calls, _ = service(sessions, outbound_settings)
     result = calls.create(call_input())
     audio_id, _ = calls.admit_phone(receipt(sessions, result.id, call_status="ongoing"))
     calls.controls(ControlsInput(calls_paused=False, transfers_paused=True))
     with pytest.raises(ApiError) as caught:
         calls.reserve_transfer(audio_id, "confirmation")
     assert caught.value.code == "OUTBOUND_TRANSFER_DISABLED"
+
+
+def test_operator_can_cancel_during_preflight_without_a_provider_send(sessions, outbound_settings):
+    calls, provider = service(sessions, outbound_settings)
+    def preflight(number):
+        with sessions() as session:
+            call_id = session.scalar(select(OutboundCall.id))
+        assert calls.stop(call_id).terminal
+    provider.preflight.side_effect = preflight
+    result = calls.create(call_input())
+    assert result.terminal and result.status == "failed"
+    provider.dial.assert_not_called()
+    provider.stop.assert_not_called()
+
+
+def test_stop_is_durable_and_late_start_cannot_admit_a_socket(sessions, outbound_settings):
+    calls, provider = service(sessions, outbound_settings)
+    result = calls.create(call_input())
+    ongoing = receipt(sessions, result.id, call_status="ongoing")
+    provider.retrieve.return_value = ongoing
+    stopped = calls.stop(result.id)
+    assert stopped.status == "unknown" and not stopped.terminal
+    provider.stop.assert_called_once_with(ongoing.call_id)
+    restarted = OutboundCallService(sessions, outbound_settings, provider)
+    restarted.apply(ongoing, "call_started")
+    with pytest.raises(ApiError, match="already admitted"):
+        restarted.admit_phone(ongoing)
+    with sessions() as session:
+        row = session.get(OutboundCall, result.id)
+        assert not restarted.active(row.audio_session_id)
+    assert restarted.get(result.id).status == "unknown"
+    assert provider.dial.call_count == 1
+
+
+def test_stop_looks_up_a_missing_receipt_without_dialing_again(sessions, outbound_settings):
+    calls, provider = service(sessions, outbound_settings)
+    provider.dial.side_effect = OutboundProviderError("RETELL_DIAL_UNCERTAIN", "Timeout", outcome_unknown=True)
+    result = calls.create(call_input())
+    existing = receipt(sessions, result.id, call_status="ongoing")
+    provider.find.return_value = existing
+    provider.retrieve.return_value = existing.model_copy(update={"call_status": "ended", "disconnection_reason": "manual_stopped"})
+    assert calls.stop(result.id).terminal
+    provider.stop.assert_called_once_with(existing.call_id)
+    assert provider.dial.call_count == 1
+
+
+def test_rejected_stop_retains_reservation_until_final_evidence(sessions, outbound_settings):
+    calls, provider = service(sessions, outbound_settings)
+    result = calls.create(call_input())
+    provider.stop.side_effect = OutboundProviderError("RETELL_STOP_UNCERTAIN", "Unknown", outcome_unknown=True)
+    with pytest.raises(ApiError):
+        calls.stop(result.id)
+    assert not calls.get(result.id).terminal
+    with pytest.raises(ApiError):
+        calls.create(call_input(phone_number="+12025550126"))
+    calls.apply(receipt(sessions, result.id, call_status="ended", disconnection_reason="manual_stopped"), "call_ended")
+    assert calls.get(result.id).terminal
+
+
+def test_mismatched_creation_receipt_holds_the_slot_without_redial(sessions, outbound_settings):
+    calls, provider = service(sessions, outbound_settings)
+    provider.dial.side_effect = lambda data, call_id, proof: phone_call(call_id, proof, agent_version=4)
+    data = call_input()
+    result = calls.create(data)
+    assert result.status == "unknown" and not result.terminal and result.provider_call_id is None
+    assert calls.create(data).id == result.id
+    with pytest.raises(ApiError):
+        calls.create(call_input(phone_number="+12025550126"))
+    assert provider.dial.call_count == 1
+
+
+def test_final_timestamps_supply_duration_without_rewriting_the_connection_time(sessions, outbound_settings):
+    calls, _ = service(sessions, outbound_settings)
+    result = calls.create(call_input())
+    start = int(datetime.now(UTC).timestamp() * 1000)
+    calls.apply(receipt(sessions, result.id, call_status="ongoing", start_timestamp=start), "call_started")
+    calls.apply(receipt(sessions, result.id, call_status="ended", start_timestamp=start, end_timestamp=start + 12000, disconnection_reason="user_hangup"), "call_ended")
+    calls.apply(receipt(sessions, result.id, call_status="ongoing", start_timestamp=start + 1000), "late_start")
+    final = calls.get(result.id)
+    assert final.terminal and final.duration_seconds == 12
+    assert final.started_at == datetime.fromtimestamp(start / 1000, UTC)
+
+
+@pytest.mark.parametrize("scenario", ["renting", "buying", "luxury"])
+@pytest.mark.parametrize("finish", ["stop", "complete"])
+def test_mock_api_start_duplicate_recovery_history_and_end_need_no_external_services(sessions, outbound_settings, scenario, finish):
+    configured = ApiSettings.model_validate({**outbound_settings.model_dump(), "outbound_enabled": False, "outbound_mock_enabled": True})
+    calls, provider = service(sessions, configured)
+    data = call_input(scenario=scenario)
+    headers = {"X-Admin-Token": "b" * 43, "Idempotency-Key": str(data.request_id)}
+    with TestClient(application(configured, calls)) as client:
+        assert client.post("/api/v1/outbound/preflight", headers=headers).json() == {"ready": True, "mock": True}
+        response = client.post("/api/v1/outbound/calls", headers=headers, json=data.model_dump(mode="json"))
+        assert response.status_code == 200
+        created = response.json()
+        duplicate = client.post("/api/v1/outbound/calls", headers=headers, json=data.model_dump(mode="json"))
+        assert duplicate.json()["id"] == created["id"]
+        assert created["mock"] and created["scenario"] == scenario
+        assert client.get(f"/api/v1/outbound/requests/{data.request_id}", headers=headers).json()["id"] == created["id"]
+        assert client.get("/api/v1/outbound/calls", headers=headers).json()[0]["id"] == created["id"]
+        if finish == "stop":
+            final = client.post(f"/api/v1/outbound/calls/{created['id']}/stop", headers=headers).json()
+        else:
+            with sessions() as session, session.begin():
+                session.get(OutboundCall, UUID(created["id"])).created_at -= timedelta(seconds=20)
+            final = client.get(f"/api/v1/outbound/requests/{data.request_id}", headers=headers).json()
+            assert final["duration_seconds"] == 13
+        assert final["terminal"] and final["mock"]
+    assert provider.mock_calls == []

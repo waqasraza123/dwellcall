@@ -113,6 +113,9 @@ class ApiSettings(OutboundSettings, DatabaseConnectionSettings):
     web_origin: str = "http://localhost:3000"
     admin_token: SecretStr | None = Field(default=None, min_length=32)
     retell_test_audio_enabled: bool = False
+    browser_text_enabled: bool = False
+    browser_voice_enabled: bool = False
+    browser_mock_enabled: bool = False
     retell_api_key: SecretStr | None = None
     retell_agent_id: str | None = Field(default=None, min_length=1, max_length=200)
     retell_agent_version: int | None = Field(default=None, ge=0)
@@ -167,6 +170,15 @@ class ApiSettings(OutboundSettings, DatabaseConnectionSettings):
 
     @model_validator(mode="after")
     def validate_private_audio(self) -> Self:
+        if self.browser_mock_enabled and (self.app_environment is RuntimeEnvironment.PRODUCTION or self.browser_text_enabled or self.browser_voice_enabled):
+            raise ValueError("Browser simulation is development-only and cannot be combined with live browser modes")
+        if self.browser_voice_enabled and not self.retell_test_audio_enabled:
+            raise ValueError("Browser voice requires the configured private Retell web-call feature")
+        if self.browser_text_enabled and (not self.llm_api_key or not self.admin_token):
+            raise ValueError("Browser text requires the existing LLM and admin credentials")
+        if self.browser_text_enabled or self.browser_mock_enabled:
+            if not self.admin_token or not 0 < self.conversation_reserved_cost_cents <= self.conversation_daily_budget_cents:
+                raise ValueError("Browser conversations require operator authentication and a positive shared conversation budget")
         if self.outbound_mock_enabled and self.app_environment is RuntimeEnvironment.PRODUCTION:
             raise ValueError("Mock calling is limited to development or isolated tests")
         if self.outbound_enabled:

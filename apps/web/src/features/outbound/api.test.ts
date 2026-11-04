@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { callRequest, pendingRequest, recoverCall, requestCall, STORAGE_KEY } from "./api";
-import { isOutboundCall } from "./contracts";
+import { callRequest, pendingRequest, recoverCall, requestCall, unresolvedCall, STORAGE_KEY } from "./api";
+import { isOutboundCall, type OutboundCall } from "./contracts";
 
 const id = "11111111-1111-4111-8111-111111111111";
 const call = { id, request_id: id, provider_call_id: "call_mock_synthetic", status: "dialing", transfer_status: "not_requested", scenario: "renting", created_at: "2026-11-04T12:00:00Z", started_at: null, finalized_at: null, duration_seconds: null, terminal: false, mock: true, message: "Simulated request", error_code: null };
@@ -25,6 +25,13 @@ describe("outbound request and refresh recovery", () => {
     const fetcher = vi.fn().mockResolvedValue(Response.json({ error: { code: "OUTBOUND_REQUEST_NOT_FOUND", message: "Investigate before redialing" } }, { status: 404 })); vi.stubGlobal("fetch", fetcher);
     await expect(recoverCall(id)).rejects.toThrow("Investigate before redialing");
     expect(fetcher).toHaveBeenCalledOnce(); expect(fetcher.mock.calls[0][1].method).toBe("GET");
+  });
+  it("recovers an unresolved history request when this tab has no saved ID", () => {
+    const ongoing = call as OutboundCall;
+    const final: OutboundCall = { ...ongoing, status: "completed", finalized_at: "2026-11-04T12:01:00Z", terminal: true };
+    expect(unresolvedCall([final, ongoing])).toBe(ongoing);
+    expect(unresolvedCall([final])).toBeNull();
+    expect(unresolvedCall([{ ...ongoing, status: "unknown" }])?.request_id).toBe(id);
   });
   it("retains uncertainty after a lost creation receipt without retrying", async () => {
     const fetcher = vi.fn().mockRejectedValue(new TypeError("Connection lost")); vi.stubGlobal("fetch", fetcher);

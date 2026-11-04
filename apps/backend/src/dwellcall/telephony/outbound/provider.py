@@ -67,14 +67,20 @@ class RetellOutboundProvider:
         if not isinstance(trunk, dict):
             raise rejected("TELNYX_TRUNK_MISSING", "Import the authorized Telnyx number with outbound SIP credentials into Retell")
         uri = trunk.get("termination_uri")
-        host = urlsplit("sip://" + str(uri).removeprefix("sip:").removeprefix("//")).hostname
+        parsed = urlsplit("sip://" + str(uri).removeprefix("sip:").removeprefix("//"))
         if (
             phone.get("phone_number") != caller or phone.get("phone_number_type") != "custom"
-            or host != settings.outbound_telnyx_termination_host
+            or not isinstance(uri, str) or parsed.hostname != settings.outbound_telnyx_termination_host
+            or parsed.username is not None or parsed.password is not None
+            or parsed.path not in {"", "/"} or parsed.query or parsed.fragment
+            or parsed.port not in {None, 5060, 5061}
             or trunk.get("auth_username") != settings.outbound_sip_username.get_secret_value()
             or trunk.get("transport") not in {"TCP", "TLS"}
         ):
             raise rejected("TELNYX_TRUNK_INVALID", "Check the imported caller number, Telnyx termination host, username and TCP/TLS transport")
+        codecs = trunk.get("codecs")
+        if codecs is not None and (not isinstance(codecs, list) or not codecs or any(codec not in ("PCMU", "PCMA", "G.722") for codec in codecs)):
+            raise rejected("TELNYX_CODECS_INVALID", "Configure compatible PCMU, PCMA or G.722 codecs on the imported trunk and Telnyx connection")
         permitted = phone.get("allowed_outbound_country_list")
         if not isinstance(permitted, list) or any(not isinstance(value, str) for value in permitted) or not settings.outbound_allowed_countries.issubset(permitted):
             raise rejected("RETELL_DESTINATIONS_INVALID", "Authorize the configured destination countries on the imported Retell number")
@@ -86,7 +92,7 @@ class RetellOutboundProvider:
         expected_socket = (settings.outbound_public_base_url or "").replace("https://", "wss://", 1) + "/api/v1/retell/llm/" + (secret.get_secret_value() if secret else "")
         if (
             agent.get("agent_id") != settings.outbound_agent_id
-            or agent.get("version") != settings.outbound_agent_version
+            or type(agent.get("version")) is not int or agent.get("version") != settings.outbound_agent_version
             or agent.get("is_published") is not True
             or not isinstance(engine, dict) or engine.get("type") != "custom-llm"
             or engine.get("llm_websocket_url") != expected_socket
@@ -101,12 +107,16 @@ class RetellOutboundProvider:
             or type(retention) is not int
             or not 1 <= retention <= settings.outbound_retention_days
             or agent.get("enable_dnc_detection") is not True
-            or (isinstance(memory, dict) and (memory.get("enable_update") is True or memory.get("enable_read") is True))
+            or (memory is not None and (not isinstance(memory, dict) or memory.get("enable_update") is not False or memory.get("enable_read") is not False))
             or agent.get("pre_session_tools") or agent.get("post_session_tools")
         ):
             raise rejected("RETELL_PRIVACY_INVALID", "Disable recordings/transcript storage, contact memory and session tools; configure retention and DNC detection")
+        voicemail = agent.get("voicemail_option")
+        voicemail_action = voicemail.get("action") if isinstance(voicemail, dict) else None
+        if voicemail is not None and (not isinstance(voicemail_action, dict) or voicemail_action.get("type") != "hangup"):
+            raise rejected("RETELL_VOICEMAIL_INVALID", "Disable voicemail actions or configure hangup; outbound messages and transfers are disabled")
         events = agent.get("webhook_events")
-        if agent.get("webhook_url") != (settings.outbound_public_base_url or "") + "/api/v1/retell/webhook" or not isinstance(events, list) or not {"call_started", "call_ended", "call_analyzed"}.issubset(events):
+        if agent.get("webhook_url") != (settings.outbound_public_base_url or "") + "/api/v1/retell/webhook" or (events is not None and (not isinstance(events, list) or any(not isinstance(event, str) for event in events) or not {"call_started", "call_ended", "call_analyzed"}.issubset(events))):
             raise rejected("RETELL_WEBHOOK_INVALID", "Configure the signed DwellCall Retell webhook and all three lifecycle events")
 
     def dial(self, data: CallInput, call_id: str, request_hash: str) -> RetellCall:
@@ -154,7 +164,7 @@ class RetellOutboundProvider:
             if len(items) != 1:
                 raise ValueError("Ambiguous call identity")
             call = RetellCall.model_validate(items[0])
-            if not call.metadata or call.metadata.get("authorization") != request_hash:
+            if not call.metadata or call.metadata.get("dwellcall_outbound_id") != call_id or call.metadata.get("authorization") != request_hash:
                 raise ValueError("Mismatched authorization")
             return call
         except (httpx.HTTPError, ValueError, TypeError):

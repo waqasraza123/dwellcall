@@ -24,6 +24,12 @@ class RetellCall(BaseModel):
     transfer_destination: str | None = Field(default=None, max_length=200)
     transfer_end_timestamp: int | None = Field(default=None, ge=0, le=253402300799000)
 
+    @model_validator(mode="after")
+    def ordered_timestamps(self) -> "RetellCall":
+        if self.start_timestamp is not None and self.end_timestamp is not None and self.end_timestamp < self.start_timestamp:
+            raise ValueError("The call end cannot precede its start")
+        return self
+
 
 class Utterance(BaseModel):
     model_config = ConfigDict(strict=True)
@@ -91,10 +97,9 @@ class PingPongResponse(BaseModel):
 
 
 class Response(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     response_type: Literal["response"] = "response"
     response_id: int
     content: str
     content_complete: bool
     end_call: bool = False
-    transfer_number: str | None = None
-    show_transferee_as_caller: bool = False

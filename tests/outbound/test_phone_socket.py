@@ -1,7 +1,9 @@
+import asyncio
 import hashlib
 import hmac
 import json
 import time
+from threading import Event
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
@@ -12,7 +14,7 @@ import pytest
 from starlette.websockets import WebSocketDisconnect
 
 from dwellcall.consultant.catalog import PropertyRequirements
-from dwellcall.consultant.state import ConsultationSession, RequirementExtraction, TRANSFER_PROMPT
+from dwellcall.consultant.state import ConsultationSession, RequirementExtraction, AI_ONLY_HANDOFF_REPLY
 from dwellcall.errors import ApiError, api_error_handler
 from dwellcall.telephony.outbound.service import OutboundCallService
 from dwellcall.telephony.retell import routes
@@ -78,20 +80,20 @@ def test_phone_admission_failure_never_greets_or_reserves_twice(monkeypatch, out
     audio.reserve.assert_not_called()
 
 
-def test_transfer_number_only_follows_the_spoken_separate_turn_confirmation(monkeypatch, outbound_settings):
+def test_phone_transfer_stays_disabled_even_if_availability_is_misreported(monkeypatch, outbound_settings):
     app, call, _, outbound, _ = application(monkeypatch, outbound_settings, transfer=True)
     with TestClient(app) as client:
         with client.websocket_connect(f"/api/v1/retell/llm/{'a' * 43}/{call.call_id}") as socket:
             socket.receive_json(); socket.receive_json()
             socket.send_json({"interaction_type": "response_required", "response_id": 1, "transcript": [{"role": "user", "content": "A human please"}]})
-            assert socket.receive_json()["content"] == TRANSFER_PROMPT
+            assert socket.receive_json()["content"] == AI_ONLY_HANDOFF_REPLY
             assert "transfer_number" not in socket.receive_json()
             outbound.reserve_transfer.assert_not_called()
-            socket.send_json({"interaction_type": "response_required", "response_id": 2, "transcript": [{"role": "user", "content": "A human please"}, {"role": "agent", "content": TRANSFER_PROMPT}, {"role": "user", "content": "yes"}]})
-            assert "not confirmed" in socket.receive_json()["content"]
+            socket.send_json({"interaction_type": "response_required", "response_id": 2, "transcript": [{"role": "user", "content": "A human please"}, {"role": "agent", "content": AI_ONLY_HANDOFF_REPLY}, {"role": "user", "content": "yes"}]})
+            socket.receive_json()
             final = socket.receive_json()
-            assert final["transfer_number"] == "+12025550125" and final["show_transferee_as_caller"] is False
-            outbound.reserve_transfer.assert_called_once()
+            assert "transfer_number" not in final
+            outbound.reserve_transfer.assert_not_called()
 
 
 def test_do_not_call_suppresses_without_a_model_request(monkeypatch, outbound_settings):
@@ -129,15 +131,51 @@ def test_expired_phone_conversation_does_not_greet_or_release_the_call(monkeypat
     audio.finalize.assert_not_called()
 
 
-def test_transfer_disable_race_returns_a_failure_without_a_transfer_frame(monkeypatch, outbound_settings):
-    app, call, _, outbound, _ = application(monkeypatch, outbound_settings, transfer=True)
-    outbound.reserve_transfer.side_effect = ApiError(status_code=409, code="OUTBOUND_TRANSFER_DISABLED", message="Paused")
+def test_operator_stop_ends_an_idle_phone_socket_without_another_user_turn(monkeypatch, outbound_settings):
+    app, call, _, outbound, _ = application(monkeypatch, outbound_settings)
     with TestClient(app) as client:
         with client.websocket_connect(f"/api/v1/retell/llm/{'a' * 43}/{call.call_id}") as socket:
             socket.receive_json(); socket.receive_json()
-            socket.send_json({"interaction_type": "response_required", "response_id": 1, "transcript": [{"role": "user", "content": "A human please"}]})
+            outbound.active.return_value = False
+            final = socket.receive_json()
+            assert final["end_call"] is True and "transfer_number" not in final
+
+
+def test_phone_details_must_belong_to_the_reserved_session(monkeypatch, outbound_settings):
+    app, call, _, outbound, _ = application(monkeypatch, outbound_settings)
+    outbound.validate_phone_details.side_effect = ApiError(status_code=403, code="OUTBOUND_CALL_IDENTITY_INVALID", message="Wrong reservation")
+    with TestClient(app) as client:
+        with client.websocket_connect(f"/api/v1/retell/llm/{'a' * 43}/{call.call_id}") as socket:
             socket.receive_json(); socket.receive_json()
-            socket.send_json({"interaction_type": "response_required", "response_id": 2, "transcript": [{"role": "agent", "content": TRANSFER_PROMPT}, {"role": "user", "content": "yes"}]})
-            socket.receive_json()
-            failure = socket.receive_json()
-            assert "unavailable" in failure["content"] and "transfer_number" not in failure
+            socket.send_json({"interaction_type": "call_details", "call": call.model_dump()})
+            with pytest.raises(WebSocketDisconnect):
+                socket.receive_json()
+    outbound.validate_phone_details.assert_called_once_with("reserved_audio", call)
+
+
+def test_phone_interruption_cancels_generation_and_uses_only_the_spoken_transcript(monkeypatch, outbound_settings):
+    cancelled = Event()
+    observed = []
+    async def stream(self, transcript, session):
+        if transcript[-1].content == "First question":
+            try:
+                yield "Generated first answer"
+                await asyncio.Future()
+            finally:
+                cancelled.set()
+        else:
+            observed.extend(turn.model_dump() for turn in transcript)
+            yield "Answer to the correction"
+    monkeypatch.setattr(Consultant, "stream", stream)
+    app, call, _, _, _ = application(monkeypatch, outbound_settings)
+    spoken = [{"role": "user", "content": "First question"}, {"role": "agent", "content": "Generated first"}, {"role": "user", "content": "I changed my mind"}]
+    with TestClient(app) as client:
+        with client.websocket_connect(f"/api/v1/retell/llm/{'a' * 43}/{call.call_id}") as socket:
+            socket.receive_json(); socket.receive_json()
+            socket.send_json({"interaction_type": "response_required", "response_id": 1, "transcript": spoken[:1]})
+            assert socket.receive_json()["content"] == "Generated first answer"
+            socket.send_json({"interaction_type": "update_only", "transcript": spoken})
+            socket.send_json({"interaction_type": "response_required", "response_id": 2, "transcript": spoken})
+            assert socket.receive_json()["response_id"] == 2
+            assert socket.receive_json()["content_complete"] is True
+    assert cancelled.is_set() and observed == spoken

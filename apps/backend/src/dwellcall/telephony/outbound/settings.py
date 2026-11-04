@@ -70,6 +70,10 @@ class OutboundSettings(BaseModel):
 
     @model_validator(mode="after")
     def outbound_configuration(self) -> Self:
+        if self.outbound_transfer_enabled:
+            raise ValueError("Outbound transfer is disabled permanently; DwellCall is operated only by AI agents")
+        if self.outbound_allowed_countries != frozenset({"US"}) or self.outbound_confirmed_international_countries:
+            raise ValueError("Outbound calling is restricted to US destinations")
         allowed = self.allowed_numbers
         self.suppressed_numbers
         for number in (self.outbound_from_number, self.outbound_human_number):
@@ -94,18 +98,9 @@ class OutboundSettings(BaseModel):
         human = self.outbound_human_number.get_secret_value()
         if caller in allowed or (human and (human in allowed or human == caller)):
             raise ValueError("Caller, recipients and human destination must differ")
-        if self.outbound_allowed_countries - {"US"} - self.outbound_confirmed_international_countries:
-            raise ValueError("International destinations require country-specific carrier/rate/caller-ID authorization confirmation")
         if any(destination_country(number) not in self.outbound_allowed_countries for number in allowed):
             raise ValueError("Every allowlisted recipient must be in an authorized country")
-        reservation = self.outbound_reserved_cost_cents
-        if self.outbound_transfer_enabled:
-            reservation += self.outbound_transfer_reserved_cost_cents
-            if not (human and self.outbound_transfer_compatibility_confirmed and self.outbound_transfer_carrier_limit_confirmed and self.outbound_transfer_reserved_cost_cents > 0):
-                raise ValueError("Transfer requires verified outbound SIP REFER/PSTN behavior, carrier leg controls, a fixed number and a cost reservation")
-            if destination_country(human) not in self.outbound_allowed_countries:
-                raise ValueError("The human transfer country must be authorized")
-        if not 0 < self.outbound_reserved_cost_cents <= reservation <= self.outbound_daily_budget_cents:
+        if not 0 < self.outbound_reserved_cost_cents <= self.outbound_daily_budget_cents:
             raise ValueError("Set positive calling reservations within the daily budget")
         return self
 

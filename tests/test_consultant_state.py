@@ -97,7 +97,7 @@ def test_human_request_is_an_unavailable_decision_not_a_transfer(settings: ApiSe
     update = session.propose(RequirementExtraction(
         requirements=requirements(), intent="handoff",
     ), [Utterance(role="user", content="Can I speak to a human?")], settings)
-    assert "not enabled" in update.reply and not update.end_call
+    assert "operated only by AI agents" in update.reply and "no human agents" in update.reply and not update.end_call
 
 
 def test_yes_after_an_old_revision_readback_cannot_confirm_new_requirements(settings: ApiSettings) -> None:

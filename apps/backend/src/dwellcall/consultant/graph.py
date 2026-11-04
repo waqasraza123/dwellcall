@@ -13,7 +13,8 @@ from dwellcall.consultant.catalog import (
     Property, PropertyCatalog, compare_properties, match_properties,
 )
 from dwellcall.consultant.state import (
-    ConsultationSession, ConsultationUpdate, RequirementExtraction, closing_requested,
+    AI_ONLY_HANDOFF_REPLY, ConsultationSession, ConsultationUpdate,
+    RequirementExtraction, closing_requested, human_handoff_requested,
 )
 from dwellcall.settings import ApiSettings
 from dwellcall.telephony.retell.schemas import Utterance
@@ -64,8 +65,8 @@ class PropertyConsultant:
 
     async def _collect(self, state: ConsultantState) -> ConsultantState:
         transcript = [Utterance.model_validate(turn) for turn in state["transcript"]]
-        if closing_requested(transcript):
-            extraction = RequirementExtraction(requirements=state["session"].requirements)
+        if closing_requested(transcript) or human_handoff_requested(transcript):
+            extraction = RequirementExtraction(requirements=state["session"].requirements, intent="handoff" if human_handoff_requested(transcript) else "continue")
             return {
                 "extraction": extraction,
                 "update": state["session"].propose(extraction, transcript, self.settings),
@@ -132,9 +133,10 @@ class PropertyConsultant:
             "transcript": state["transcript"],
         }
         handoff_policy = (
-            "Human handoff requires a separate explicit spoken confirmation handled by the calling session. Never select a phone number or claim a connection or human answer."
-            if state["session"].transfer_enabled
-            else "Human transfer is not enabled."
+            "Human transfers are permanently unavailable. DwellCall is an AI-native "
+            "voice platform operated only by AI agents. Never offer a human agent, "
+            "human callback, escalation or future transfer availability. If asked "
+            f"for a human, explain plainly: {AI_ONLY_HANDOFF_REPLY}"
         )
         system = (
             f"You are the AI property consultant for {self.settings.business_name}, "
@@ -184,7 +186,7 @@ class PropertyConsultant:
         )
         if scenario in self.catalog.scenarios:
             return (
-                f"Hi, I'm {self.settings.business_name}'s AI property consultant, calling for your requested {scenario} demonstration. "
+                f"Hi, I'm {self.settings.business_name}'s AI property consultant, here for your requested {scenario} demonstration. "
                 f"We'll explore fictional homes in {self.settings.supported_location}. "
                 "You can ask me to stop at any time. What are you looking for?"
             )

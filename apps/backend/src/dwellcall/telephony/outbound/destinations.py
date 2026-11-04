@@ -32,6 +32,6 @@ def destination_country(value: str) -> str:
 
 
 def validate_destination(value: str, countries: frozenset[str]) -> None:
-    if destination_country(value) not in countries:
+    if destination_country(value) != "US" or "US" not in countries:
         raise ApiError(status_code=422, code="OUTBOUND_DESTINATION_UNSUPPORTED",
-                       message="This destination country is not authorized for calling")
+                       message="Outbound calling is restricted to US destinations")

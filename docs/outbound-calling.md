@@ -45,8 +45,8 @@ and discovery remain separate. No campaign or automatic dialing path exists.
    Failed preflights also consume an admitted attempt/reservation. Carrier-side
    spending/destination controls remain necessary. Confirm carrier permissions,
    rates, caller ID and authorization before enabling live calling. Non-US
-   countries, including Pakistan, require explicit entries in both country sets;
-   they are disabled by default. Number metadata does not establish ownership.
+   countries are unsupported: keep `OUTBOUND_ALLOWED_COUNTRIES=["US"]` and
+   `OUTBOUND_CONFIRMED_INTERNATIONAL_COUNTRIES=[]`. Number metadata does not establish ownership.
 7. The existing operator login and server bridge need no new browser secret.
    Open `/calls`. With `OUTBOUND_ENABLED=false`, development-only
    `OUTBOUND_MOCK_ENABLED=true` exercises the full durable form/status workflow
@@ -85,23 +85,28 @@ every carrier leg ended; recovery refuses an in-flight send. Missing browser
 requests stay locked for investigation; do not clear a missing key until the
 original sender has stopped and account/DB history confirms no call can emerge.
 
-Transfer uses the [Custom LLM response `transfer_number`](https://docs.retellai.com/api-references/llm-websocket)
-for imported numbers, after the complete confirmation question is present in
-Retell's spoken transcript and a separate clear yes. The destination comes only
-from `OUTBOUND_HUMAN_NUMBER`; caller-ID passthrough is off. Interruption or an
-uncertain send leaves transfer unconfirmed and never retries. REFER acceptance
-does not establish human answer. Confirmed transfer cancellation can finalize
-failure; otherwise operator-confirmed carrier completion releases the reservation.
+Human transfer is permanently disabled in configuration, admission and response frames.
+`OUTBOUND_TRANSFER_ENABLED=true` is rejected even with the legacy confirmation
+flags. There is no transfer activation or caller confirmation path. When requested,
+the consultant states plainly that DwellCall is an AI-native voice platform operated
+only by AI agents and that no human agents are available to transfer to.
+Legacy or unexpected transfer evidence
+still holds the carrier reservation until all legs are confirmed ended. Emergency
+pause is durable; Stop call is a separate deliberate action. Stop prevents further
+socket admission/responses across restarts, cancels an unsent reservation, and
+looks up a missing receipt without dialing again.
 
-Keep transfer disabled. [Telnyx's published external-transfer guide](https://support.telnyx.com/en/articles/13117410-how-external-call-transfers-work)
-describes inbound call matching, which does not establish compatibility for this
-outbound-originated PSTN transfer. Before enabling, obtain account-specific REFER/
-PSTN/caller-ID confirmation and test declined/unavailable/no-answer handling.
-Independently enforce the declared `OUTBOUND_TRANSFER_MAX_SECONDS` and spending
-cap on transferred carrier legs, and reserve their maximum estimated cost. The
-two confirmation flags are owner attestations, not an implemented carrier timer.
-The AI duration limit and Retell stop request cannot establish transferred-leg
-termination. Emergency pause is durable; Stop call is a separate deliberate action.
+Owner policy checks (not run):
+`python -m pytest tests/outbound/test_policy.py tests/outbound/test_conversation.py tests/outbound/test_phone_socket.py tests/test_consultant_state.py tests/test_graph.py`.
+Manually request a human during a phone call and browser voice/text conversation;
+confirm the AI-only explanation, no transfer offer/confirmation and continued AI
+help. Repeat in simulation. Controls and configuration must reject transfer activation.
+
+Provider contract references: [numeric version overrides](https://github.com/RetellAI/retell-python-sdk/blob/main/src/retell/types/call_create_phone_call_params.py),
+[published agents](https://docs.retellai.com/api-references/get-agent),
+[imported-number configuration](https://docs.retellai.com/api-references/get-phone-number),
+[stop](https://docs.retellai.com/api-references/stop-call), and
+[bounded call lookup](https://docs.retellai.com/api-references/list-calls).
 
 Local call rows retain keyed hashes, request IDs, minimal consent/receipt/status/
 cost/transfer evidence and timestamps. No raw recipient/caller phone is stored in
@@ -110,6 +115,29 @@ suppression/quota migration. Evidence and suppression tombstones are retained to
 prevent replays; provider retention does not delete local authorization evidence.
 
 ## Owner validation
+
+Required backend configuration (private values stay on the backend): `DATABASE_URL`,
+`ADMIN_TOKEN`, `RETELL_API_KEY`, `RETELL_WEBSOCKET_SECRET`, `LLM_API_KEY`, `LLM_MODEL`,
+`OUTBOUND_AGENT_ID`, `OUTBOUND_AGENT_VERSION` (numeric published version),
+`OUTBOUND_FROM_NUMBER`, `OUTBOUND_ALLOWED_NUMBERS`, `OUTBOUND_HASH_SECRET`,
+`OUTBOUND_SIP_USERNAME`, `OUTBOUND_TELNYX_TERMINATION_HOST`, `OUTBOUND_PUBLIC_BASE_URL`,
+`OUTBOUND_RESERVED_COST_CENTS`, `OUTBOUND_DAILY_BUDGET_CENTS`. For live activation,
+set `OUTBOUND_ENABLED=true`, `OUTBOUND_MOCK_ENABLED=false`,
+`OUTBOUND_DESTINATION_PERMISSIONS_CONFIRMED=true`, `OUTBOUND_CALLER_ID_CONFIRMED=true`.
+Keep `OUTBOUND_ALLOWED_COUNTRIES=["US"]`,
+`OUTBOUND_CONFIRMED_INTERNATIONAL_COUNTRIES=[]`, `OUTBOUND_TRANSFER_ENABLED=false`.
+The existing consultant also uses `BUSINESS_NAME`, `SUPPORTED_LOCATION`, `CURRENCY`,
+`PERSONALITY`, and `PROPERTY_CATALOG_PATH`; retain US catalog settings.
+
+Frontend server configuration: `DWELLCALL_API_BASE_URL`,
+`DWELLCALL_BACKEND_ADMIN_TOKEN` (matches backend `ADMIN_TOKEN`),
+`DWELLCALL_OPERATOR_PASSWORD`, `DWELLCALL_SESSION_SECRET`. Set backend
+`WEB_ORIGIN` to the frontend origin. No Retell/Telnyx credentials belong in the
+browser. For isolated simulation, use `APP_ENVIRONMENT=development`,
+`OUTBOUND_ENABLED=false`, `OUTBOUND_MOCK_ENABLED=true`; the existing DB, operator
+authentication, synthetic caller/allowlist/agent pin, hash secret and positive
+simulated budgets are still required, but no provider/LLM credentials are needed
+when the separate `RETELL_TEST_AUDIO_ENABLED` feature is off.
 
 From the repository root, with Python 3.13 and Node 24, owner-only:
 
@@ -145,5 +173,4 @@ calling, configure the real agent/trunk, pass preflight and initiate one consent
 allowlisted call. Check greeting/disclosure, renting/buying/luxury continuity,
 recommendations/comparisons/objections, interruption, explicit stop/DNC, 180-second
 cutoff, terminal webhook evidence, refresh recovery, and recording absence in both
-systems. Human transfer remains disabled until its independent prerequisites and
-carrier-leg acceptance are complete. All implementation remains **UNVERIFIED**.
+systems. Human transfer remains disabled. All implementation remains **UNVERIFIED**.

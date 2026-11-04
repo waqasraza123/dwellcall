@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+import re
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -17,7 +18,27 @@ CLOSING_PHRASES = frozenset({
     "im done", "no thanks goodbye", "thats all thank you", "that s all thanks",
 })
 REJECTIONS = frozenset({"no", "no that s wrong", "no thats wrong", "that s not correct", "not correct"})
-TRANSFER_PROMPT = "Would you like me to connect this call to our designated human consultant now? Say yes to confirm this transfer."
+AI_ONLY_HANDOFF_REPLY = (
+    "DwellCall is an AI-native voice platform operated only by AI agents. "
+    "There are no human agents to transfer you to. I can keep helping you here."
+)
+
+
+def human_handoff_requested(transcript: list[Utterance]) -> bool:
+    if not transcript or transcript[-1].role != "user":
+        return False
+    speech = normalized_speech(transcript[-1].content)
+    return speech in {
+        "human", "a human", "a human please", "human please", "a real person please",
+        "real person", "human agent", "a live agent", "someone real",
+        "operator", "operator please", "a representative please", "live agent",
+        "transfer me", "please transfer me", "can you transfer me",
+        "can you please transfer me", "transfer this call", "i want a human",
+    } or re.search(
+        r"\b(?:speak|talk|connect|transfer|handoff|hand off|put me through|can i get|i want|i need|may i have|i would like|i d like|let me|give me|send me|pass me|get me)\b"
+        r".{0,100}\b(?:human|person|operator|representative|supervisor|manager|live agent|real estate agent)\b",
+        speech,
+    ) is not None
 
 
 def closing_requested(transcript: list[Utterance]) -> bool:
@@ -74,8 +95,6 @@ class ConsultationUpdate:
     confirmed_summary: str | None
     reply: str | None = None
     end_call: bool = False
-    pending_transfer_prompt: str | None = None
-    transfer_requested: bool = False
 
 
 @dataclass
@@ -86,9 +105,6 @@ class ConsultationSession:
     pending_readback: str | None = None
     confirmed_summary: str | None = None
     end_call: bool = False
-    transfer_enabled: bool = False
-    pending_transfer_prompt: str | None = None
-    transfer_requested: bool = False
 
     def propose(
         self, extraction: RequirementExtraction, transcript: list[Utterance],
@@ -107,17 +123,8 @@ class ConsultationSession:
                 version += 1
             confirmed, summary, readback = None, None, None
         reply = None
-        if self.transfer_enabled and self.pending_transfer_prompt:
-            try:
-                require_spoken_confirmation(transcript, self.pending_transfer_prompt, "transfer me")
-            except ValueError:
-                pass
-            else:
-                return ConsultationUpdate(
-                    needs, version, confirmed, readback, summary,
-                    "I'll ask the phone provider to connect you now. A human answer is not confirmed.",
-                    transfer_requested=True,
-                )
+        if human_handoff_requested(transcript) or extraction.intent == "handoff":
+            return ConsultationUpdate(needs, version, confirmed, None, summary, AI_ONLY_HANDOFF_REPLY)
         if readback and needs.ready:
             try:
                 require_spoken_confirmation(transcript, readback)
@@ -141,10 +148,6 @@ class ConsultationSession:
                 reply = "There are too many details to recap at once. Which requirements are most important to keep?"
             else:
                 reply = readback
-        if reply is None and extraction.intent == "handoff":
-            if self.transfer_enabled:
-                return ConsultationUpdate(needs, version, confirmed, readback, summary, TRANSFER_PROMPT, pending_transfer_prompt=TRANSFER_PROMPT)
-            reply = "Human transfer is not enabled for this demonstration. I can continue helping with the fictional properties."
         return ConsultationUpdate(needs, version, confirmed, readback, summary, reply)
 
     def commit(self, update: ConsultationUpdate) -> None:
@@ -154,8 +157,6 @@ class ConsultationSession:
         self.pending_readback = update.pending_readback
         self.confirmed_summary = update.confirmed_summary
         self.end_call = update.end_call
-        self.pending_transfer_prompt = update.pending_transfer_prompt
-        self.transfer_requested = update.transfer_requested
 
     def confirmed_fields(self, settings: ApiSettings) -> dict[str, object]:
         if self.confirmed_version != self.version or self.confirmed_summary is None:
