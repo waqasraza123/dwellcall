@@ -54,3 +54,6 @@ plugins = ["pydantic.mypy"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--strict-config --strict-markers"
+
+[tool.vercel]
+entrypoint = "apps.backend.src.dwellcall.api:app"
