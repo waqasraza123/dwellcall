@@ -1,5 +1,22 @@
 # DwellCall project state
 
+## Account authentication source — 2026-11-05 — UNVERIFIED
+
+Owner authorizes committing and pushing the authentication source, specifications
+and setup documentation to `main`. Checks, migrations, services and deployment
+remain outside this publication request.
+
+- Owner requested local HVACLine authentication adapted to existing DwellCall Neon.
+  Source includes email/password signup/login, mandatory authenticator MFA,
+  replacement recovery, persisted throttles, revocable sessions and server bridge.
+  HVACLine remained read-only; no accounts/secrets/database contents were copied.
+- New migration `20261105_0010` is unapplied. New accounts have no workspace
+  privilege until deliberate owner approval by account UUID. Existing shared
+  operator-password cookies are superseded by database-backed MFA sessions.
+- Source, migrations, dependency compatibility and UI behavior remain UNVERIFIED.
+  No checks, installs, migrations, connections, services or publication ran.
+  Owner configuration, exact commands, approval SQL and checks: `docs/authentication.md`.
+
 ## Publication authorization — 2026-11-04
 
 Owner authorizes committing and pushing all pending outbound fixes, hero voice/text

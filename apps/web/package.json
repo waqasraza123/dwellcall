@@ -19,7 +19,8 @@
     "next": "16.2.12",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "retell-client-js-sdk": "3.0.1"
+    "retell-client-js-sdk": "3.0.1",
+    "qrcode.react": "4.2.0"
   },
   "devDependencies": {
     "@types/node": "24.10.1",

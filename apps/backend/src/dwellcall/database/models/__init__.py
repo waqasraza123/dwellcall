@@ -1,3 +1,5 @@
+from dwellcall.database.models.account import Account, AccountAuthEvent, AccountAuthLimit, AccountLoginSession
+from dwellcall.database.models.account_mfa import AccountMfaFactor, AccountMfaChallenge, AccountMfaRecoveryCode
 from dwellcall.database.models.workspace import DiscoveryAttempt, DiscoveryJob, OperatorAction
 from dwellcall.database.models.agent_crm import AgentCrmAudit, AgentCrmDestination, AgentCrmJob, AgentCrmLink
 from dwellcall.database.models.audio_session import AudioAdmissionGuard, AudioSession
@@ -12,6 +14,7 @@ from dwellcall.database.models.intelligence import (
 )
 
 __all__ = [
+    "Account", "AccountAuthEvent", "AccountAuthLimit", "AccountLoginSession", "AccountMfaFactor", "AccountMfaChallenge", "AccountMfaRecoveryCode",
     "BrowserConversation",
     "OutboundCall", "OutboundCallEvent", "OutboundSuppression",
     "DiscoveryAttempt", "DiscoveryJob", "OperatorAction",

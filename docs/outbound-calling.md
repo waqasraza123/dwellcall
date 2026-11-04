@@ -131,7 +131,8 @@ The existing consultant also uses `BUSINESS_NAME`, `SUPPORTED_LOCATION`, `CURREN
 
 Frontend server configuration: `DWELLCALL_API_BASE_URL`,
 `DWELLCALL_BACKEND_ADMIN_TOKEN` (matches backend `ADMIN_TOKEN`),
-`DWELLCALL_OPERATOR_PASSWORD`, `DWELLCALL_SESSION_SECRET`. Set backend
+`DWELLCALL_ACCOUNT_PORTAL_SECRET` (matches backend `ACCOUNT_PORTAL_SECRET`).
+Follow `docs/authentication.md` for mandatory MFA and approved operator accounts. Set backend
 `WEB_ORIGIN` to the frontend origin. No Retell/Telnyx credentials belong in the
 browser. For isolated simulation, use `APP_ENVIRONMENT=development`,
 `OUTBOUND_ENABLED=false`, `OUTBOUND_MOCK_ENABLED=true`; the existing DB, operator

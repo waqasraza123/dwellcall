@@ -1,7 +1,6 @@
 export class BackendError extends Error {
   constructor(readonly status: number, message: string, readonly code?: string) { super(message); this.name = "BackendError"; }
 }
-// Adapted from HVACLine's server-only customer bridge; no customer accounts are imported.
 export async function operatorBackend(path: string, method = "GET", body?: string, key?: string, browserSession?: string): Promise<Response> {
   const raw = process.env.DWELLCALL_API_BASE_URL;
   const token = process.env.DWELLCALL_BACKEND_ADMIN_TOKEN;

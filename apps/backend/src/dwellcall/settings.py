@@ -108,6 +108,24 @@ class DatabaseConnectionSettings(CommonSettings):
 
 
 class ApiSettings(OutboundSettings, DatabaseConnectionSettings):
+    account_auth_enabled: bool = False
+    account_portal_secret: SecretStr | None = Field(default=None, min_length=32)
+    account_mfa_encryption_key: SecretStr | None = None
+
+    @model_validator(mode="after")
+    def validate_account_security(self) -> Self:
+        if self.account_auth_enabled and not (self.account_portal_secret and self.account_mfa_encryption_key):
+            raise ValueError("Account authentication requires ACCOUNT_PORTAL_SECRET and ACCOUNT_MFA_ENCRYPTION_KEY")
+        if self.account_mfa_encryption_key:
+            from cryptography.fernet import Fernet
+            try:
+                Fernet(self.account_mfa_encryption_key.get_secret_value().encode())
+            except (ValueError, TypeError) as error:
+                raise ValueError("ACCOUNT_MFA_ENCRYPTION_KEY must be a Fernet key") from error
+        if self.account_portal_secret and self.account_portal_secret == self.admin_token:
+            raise ValueError("Account portal and admin secrets must differ")
+        return self
+
     api_host: str = Field(default="127.0.0.1", min_length=1)
     api_port: int = Field(default=8000, ge=1, le=65_535)
     web_origin: str = "http://localhost:3000"
@@ -154,6 +172,8 @@ class ApiSettings(OutboundSettings, DatabaseConnectionSettings):
         return value.rstrip("/")
 
     @field_validator(
+        "account_portal_secret",
+        "account_mfa_encryption_key",
         "retell_api_key",
         "retell_agent_id",
         "retell_websocket_secret",

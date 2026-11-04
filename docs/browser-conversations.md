@@ -47,9 +47,10 @@ servers; provider API keys remain backend-only. References:
 [Retell web calls](https://docs.retellai.com/deploy/web-call),
 [creation contract](https://docs.retellai.com/api-references/create-web-call).
 
-Frontend environment is unchanged: `DWELLCALL_API_BASE_URL`,
-`DWELLCALL_BACKEND_ADMIN_TOKEN`, `DWELLCALL_OPERATOR_PASSWORD`,
-`DWELLCALL_SESSION_SECRET`. No new browser-exposed secrets are needed.
+Frontend server configuration: `DWELLCALL_API_BASE_URL`,
+`DWELLCALL_BACKEND_ADMIN_TOKEN`, `DWELLCALL_ACCOUNT_PORTAL_SECRET`.
+Follow `docs/authentication.md` for Neon-backed MFA sessions and owner-approved
+operator accounts. No browser-exposed secrets are needed.
 
 ## Owner validation
 

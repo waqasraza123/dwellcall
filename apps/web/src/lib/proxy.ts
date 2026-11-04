@@ -23,6 +23,14 @@ export async function forwardResponse(response: Response): Promise<NextResponse>
   if (!response.ok) {
     const code = response.status;
     const messages: Record<string, string> = {
+      INVALID_CREDENTIALS: "That email and password do not match. Please try again.",
+      ACCOUNT_UNAVAILABLE: "Account access is unavailable or those details are already registered. Try signing in.",
+      ACCOUNT_AUTH_REQUIRED: "Sign in to continue.",
+      AUTH_RATE_LIMITED: "Too many sign-in attempts. Please try again later.",
+      MFA_CHALLENGE_REQUIRED: "Sign in again to continue authenticator verification.",
+      MFA_CODE_INVALID: "The code is invalid or already used. Wait for a new code, then retry.",
+      MFA_LOCKED: "Too many authenticator attempts. Please try again in 15 minutes.",
+      MFA_UNAVAILABLE: "Authenticator verification is unavailable. Please try again later.",
       VALIDATION_FAILED: "Check the required fields, telephone format and explicit confirmations.",
       OUTBOUND_DISABLED: "Outbound calling is disabled. The owner must configure and enable it before preflight.",
       OUTBOUND_UNAVAILABLE: "Calling is disabled or its configuration is incomplete. Recover an existing request before calling again.",

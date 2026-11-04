@@ -3,7 +3,7 @@
 Source baseline: DwellCall `b02b848e3c868f43aa890f0759a298ca3b45dc22`; HVACLine read-only `1667e5fb7af64502295715b9d588cf8f00732808`.
 No checks, installation, services, migrations, live provider calls or publication ran.
 
-Owner setup: configure `apps/web/.env.local` using its example. Set a separate strong operator password and session signing secret; map the server-only backend admin token to the existing backend `ADMIN_TOKEN`. Production backend URL requires HTTPS. Preserve the existing backend environment. Node 24 and Python 3.13 are required. GHL credentials, location, opportunity settings and activation gates remain backend-managed. The GitHub link honors `DWELLCALL_GITHUB_LINK_ENABLED=false`.
+Owner setup: configure `apps/web/.env.local` using its example. Follow `docs/authentication.md` for Neon-backed email/password, mandatory MFA and owner-approved workspace access; map the server-only backend admin token to the existing backend `ADMIN_TOKEN`. Production backend URL requires HTTPS. Preserve the existing backend environment. Node 24 and Python 3.13 are required. GHL credentials, location, opportunity settings and activation gates remain backend-managed. The GitHub link honors `DWELLCALL_GITHUB_LINK_ENABLED=false`.
 
 Owner commands from the repository root, in an activated Python environment:
 
