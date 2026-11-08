@@ -125,7 +125,10 @@ def create_retell_router(
         if event.call.call_type == "phone_call":
             if outbound is None:
                 raise ApiError(status_code=403, code="OUTBOUND_CALL_IDENTITY_INVALID", message="No outbound reservation service is available")
-            await run_in_threadpool(outbound.apply, event.call, event.event, outbound.event_digest(bytes(body)))
+            call_id = await run_in_threadpool(outbound.apply, event.call, event.event, outbound.event_digest(bytes(body)))
+            if event.event in {"call_ended", "call_analyzed"}:
+                await run_in_threadpool(outbound.intelligence.capture, call_id, event.call.transcript_object)
+                await run_in_threadpool(outbound.intelligence.process, call_id)
         else:
             gateway.validate_identity(event.call, event.call.call_id)
             if browser is not None and (event.call.metadata or {}).get("dwellcall_browser_id"):
@@ -145,6 +148,7 @@ def create_retell_router(
         reserved = False
         phone = False
         browser_call = False
+        call_purpose, intelligence_consent = "demonstration", False
         audio_id = call_id
         response_task: asyncio.Task[None] | None = None
         send_lock = asyncio.Lock()
@@ -165,6 +169,12 @@ def create_retell_router(
                 if phone and outbound is not None and any(phrase in speech for phrase in ("do not call", "don t call", "dont call", "stop calling", "remove my number")):
                     await run_in_threadpool(outbound.suppress_call, audio_id)
                     await send(Response(response_id=event.response_id, content="I have marked this number do not call. Goodbye.", content_complete=True, end_call=True))
+                    return
+                if phone and call_purpose == "qualification":
+                    async with asyncio.timeout(25):
+                        reply = await consultant.qualify(event.transcript, intelligence_consent)
+                    if event.response_id == last_response_id:
+                        await send(Response(response_id=event.response_id, content=reply.content, content_complete=True, end_call=reply.end_call))
                     return
                 async with asyncio.timeout(25), aclosing(
                     consultant.stream(event.transcript, conversation)
@@ -204,6 +214,7 @@ def create_retell_router(
                 if outbound is None:
                     raise ApiError(status_code=403, code="PHONE_CALL_DISABLED", message="Phone calls are disabled")
                 audio_id, scenario = await run_in_threadpool(outbound.admit_phone, call)
+                call_purpose, intelligence_consent = await run_in_threadpool(outbound.call_context, audio_id)
                 reserved = True
                 conversation.requirements = PropertyRequirements.model_validate({"scenario": scenario})
                 remaining = await run_in_threadpool(outbound.remaining_seconds, audio_id)
@@ -235,7 +246,7 @@ def create_retell_router(
             await websocket.send_json(ConfigResponse().model_dump())
             await send(Response(
                 response_id=0,
-                content=consultant.greeting(scenario) if phone or browser_call else consultant.greeting(),
+                content=("Hi, I am DwellCall’s AI assistant, calling for the platform conversation you requested. " + ("The transcript is saved and analyzed with OpenAI to assess follow-up interest. " if intelligence_consent else "") + "Is now a good time?") if phone and call_purpose == "qualification" else consultant.greeting(scenario) if phone or browser_call else consultant.greeting(),
                 content_complete=True,
             ))
             try:

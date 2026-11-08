@@ -12,7 +12,7 @@ describe("outbound request and refresh recovery", () => {
     const [path, init] = fetcher.mock.calls[0];
     expect(path).toBe("/api/ops/outbound/calls"); expect(init.headers["Idempotency-Key"]).toBe(id);
     const body = JSON.parse(init.body); expect(body.request_id).toBe(id); expect(body.recipient_consent_confirmed).toBe(true);
-    expect(body.consent_version).toBe("dwellcall-ai-call-v1"); expect(body.do_not_call_checked).toBe(true);
+    expect(body.consent_version).toBe("dwellcall-ai-call-v2"); expect(body.do_not_call_checked).toBe(true);
   });
   it("persists and recovers only a request ID and never initiates during recovery", async () => {
     expect(pendingRequest({ getItem: key => key === STORAGE_KEY ? id : null })).toBe(id);

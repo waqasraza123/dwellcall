@@ -39,7 +39,7 @@ def settings() -> ApiSettings:
 @pytest.fixture
 def outbound_settings(settings: ApiSettings) -> ApiSettings:
     return ApiSettings.model_validate({
-        **settings.model_dump(), "outbound_enabled": True,
+        **settings.model_dump(), "outbound_enabled": True, "outbound_provider": "retell",
         "outbound_agent_id": "agent_outbound", "outbound_agent_version": 3,
         "outbound_from_number": "+12025550123",
         "outbound_allowed_numbers": "+12025550124,+12025550126",

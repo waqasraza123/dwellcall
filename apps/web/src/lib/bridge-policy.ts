@@ -1,7 +1,8 @@
 const id = "[a-fA-F0-9-]{36}";
 const source = "[a-z0-9][a-z0-9_-]{0,63}";
 const getPaths = [
-  /^outbound\/(availability|calls)$/,
+  new RegExp(`^outbound/calls/${id}/intelligence$`),
+  /^outbound\/(availability|calls|leads)$/,
   new RegExp(`^outbound/(calls|requests)/${id}$`),
   /^intelligence\/(providers|sources|listings|agents|runs|reviews)$/,
   new RegExp(`^intelligence/reviews/${id}$`),
@@ -13,6 +14,8 @@ const getPaths = [
   /^crm\/admin\/destination$/, new RegExp(`^crm/admin/exports/${id}$`),
 ];
 const postPaths = [
+  /^outbound\/transcripts\/purge$/,
+  new RegExp(`^outbound/calls/${id}/analyze$`),
   /^outbound\/(calls|preflight|controls|suppress)$/,
   new RegExp(`^outbound/calls/${id}/(refresh|bind|stop|carrier-ended)$`),
   /^crm\/hubspot\/properties\/create$/,

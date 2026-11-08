@@ -17,12 +17,45 @@ def create_outbound_router(settings: ApiSettings, service: OutboundCallService) 
 
     router = APIRouter(prefix="/api/v1/outbound", dependencies=[Depends(admin)])
 
+    @router.get("/leads")
+    def leads() -> list[dict[str, object]]:
+        from datetime import UTC, datetime
+        from sqlalchemy import select
+        from dwellcall.database.models import OutboundCall
+        from dwellcall.database.models.call_intelligence import CallIntelligence
+        with service.sessions() as session:
+            rows = list(session.scalars(select(OutboundCall).join(CallIntelligence, CallIntelligence.call_id == OutboundCall.id).where(CallIntelligence.status == "complete", CallIntelligence.expires_at > datetime.now(UTC)).order_by(OutboundCall.created_at.desc()).limit(100)))
+            calls = [service._response(row) for row in rows]
+        result = []
+        for call in calls:
+            detail = service.intelligence.detail(call.id)
+            if detail.get("assessment") is not None:
+                result.append({"call": call.model_dump(mode="json"), "assessment": detail["assessment"]})
+        return result
+
+    @router.get("/calls/{call_id}/intelligence")
+    def intelligence(call_id: UUID) -> dict[str, object]:
+        service.get(call_id)
+        return service.intelligence.detail(call_id)
+
+    @router.post("/calls/{call_id}/analyze")
+    def analyze(call_id: UUID) -> dict[str, object]:
+        service.get(call_id)
+        service.intelligence.process(call_id, retry=True)
+        return service.intelligence.detail(call_id)
+
+    @router.post("/transcripts/purge")
+    def purge() -> dict[str, int]:
+        return {"purged": service.intelligence.purge()}
+
     @router.get("/availability")
     def availability() -> dict[str, object]:
         controls = service.controls()
         return {
             "available": (settings.outbound_enabled or settings.outbound_mock_enabled) and not controls["calls_paused"],
             "mock": settings.outbound_mock_enabled,
+            "provider": settings.outbound_provider,
+            "intelligence_enabled": settings.outbound_intelligence_enabled,
             "transfer_available": False,
             "max_duration_seconds": settings.outbound_max_duration_seconds,
             "daily_limit": settings.outbound_daily_limit,

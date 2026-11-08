@@ -19,6 +19,7 @@ class RetellCall(BaseModel):
     from_number: str | None = Field(default=None, max_length=32)
     to_number: str | None = Field(default=None, max_length=32)
     direction: Literal["inbound", "outbound"] | None = None
+    transcript_object: list[dict[str, object]] | None = None
     metadata: dict[str, object] | None = None
     disconnection_reason: str | None = Field(default=None, max_length=100)
     transfer_destination: str | None = Field(default=None, max_length=200)

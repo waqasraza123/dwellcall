@@ -1,3 +1,4 @@
+from typing import Protocol
 from urllib.parse import quote, urlsplit
 
 import httpx
@@ -176,3 +177,18 @@ class RetellOutboundProvider:
             response.raise_for_status()
         except httpx.HTTPError:
             raise OutboundProviderError("RETELL_STOP_UNCERTAIN", "Stopping is unconfirmed; verify all carrier legs before releasing this reservation", outcome_unknown=True) from None
+
+
+class OutboundProvider(Protocol):
+    def preflight(self, destination: str | None = None) -> None: ...
+    def dial(self, data: CallInput, call_id: str, request_hash: str) -> RetellCall: ...
+    def retrieve(self, call_id: str) -> RetellCall: ...
+    def find(self, call_id: str, request_hash: str) -> RetellCall | None: ...
+    def stop(self, call_id: str) -> None: ...
+
+
+def create_outbound_provider(settings: ApiSettings, provider: str | None = None) -> OutboundProvider:
+    if (provider or settings.outbound_provider) == "retell":
+        return RetellOutboundProvider(settings)
+    from dwellcall.telephony.outbound.elevenlabs import ElevenLabsOutboundProvider
+    return ElevenLabsOutboundProvider(settings)

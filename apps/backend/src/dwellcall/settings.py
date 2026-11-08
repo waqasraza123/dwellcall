@@ -238,11 +238,13 @@ class ApiSettings(OutboundSettings, DatabaseConnectionSettings):
         if self.outbound_mock_enabled and self.app_environment is RuntimeEnvironment.PRODUCTION:
             raise ValueError("Mock calling is limited to development or isolated tests")
         if self.outbound_enabled:
-            if not (self.outbound_public_base_url and self.outbound_sip_username.get_secret_value() and self.outbound_destination_permissions_confirmed and self.outbound_caller_id_confirmed):
+            if not (self.outbound_public_base_url and (self.outbound_provider != "retell" or self.outbound_sip_username.get_secret_value()) and self.outbound_destination_permissions_confirmed and self.outbound_caller_id_confirmed):
                 raise ValueError("Confirm Telnyx destination permissions/rates and caller ID, and configure the public API origin and SIP username")
-            if self.outbound_agent_id == self.retell_agent_id:
+            if not self.admin_token:
+                raise ValueError("Outbound calling requires administrator authentication")
+            if self.outbound_provider == "retell" and self.outbound_agent_id == self.retell_agent_id:
                 raise ValueError("Outbound calling requires a dedicated agent separate from web calls")
-        if not (self.retell_test_audio_enabled or self.outbound_enabled):
+        if not (self.retell_test_audio_enabled or (self.outbound_enabled and self.outbound_provider == "retell")):
             return self
         if not all(
             (

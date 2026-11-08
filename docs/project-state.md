@@ -1,3 +1,30 @@
+## Outbound publication authorized — 2026-11-08
+
+Owner authorizes pushing pending outbound/call-intelligence source to main and
+implementing the next step. Publish source with hooks disabled and skip markers;
+checks, installs, migrations, services and live providers remain unexecuted.
+Unrelated pending Stripe changes are excluded. Next implementation: reviewed lead
+approval/defer/reject decisions and local next-contact task tracking.
+
+## Outbound voice and call intelligence decision — 2026-11-08 — UNVERIFIED
+
+- Owner requests HVACLine outbound reuse with ElevenLabs default and Retell optional,
+  extended to intelligent voice conversations, transcript retention and OpenAI
+  qualification of potential customers for the DwellCall platform.
+- This explicitly supersedes earlier no-local-transcript policy for calls with
+  current transcript/analysis consent; audio recording remains disabled. Existing
+  US-only, deliberate calling, MFA/operator access and permanent AI-only policy stay.
+- Source adapts HVACLine SIP provider, SMS verification and homepage demo dialog onto
+  DwellCall reservations/recovery. Qualification conversations and encrypted
+  transcript/assessment storage feed an operator-reviewed lead inbox on `/calls`.
+  Demonstrations cannot become real leads; suggestions do not trigger CRM writes
+  or follow-up calls. Provider choice is persisted for historical recovery.
+- New migration `20261108_0012` remains unapplied. Live voice, website calling and
+  intelligence remain disabled by default. Existing environment files untouched.
+- No checks, installs, services, migrations, paid requests, publication or deployment
+  ran. Source/migrations/provider/UI behavior remain UNVERIFIED. Owner configuration,
+  exact commands and manual checks: `docs/call-intelligence.md`.
+
 # DwellCall project state
 
 ## Quantrift-derived Stripe pricing source — 2026-11-05 — UNVERIFIED

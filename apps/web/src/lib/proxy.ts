@@ -23,6 +23,15 @@ export async function forwardResponse(response: Response): Promise<NextResponse>
   if (!response.ok) {
     const code = response.status;
     const messages: Record<string, string> = {
+      ELEVENLABS_CARRIER_STOP_REQUIRED: "End the active SIP call in Telnyx, then reconcile or confirm every carrier leg ended. The reservation remains held.",
+      ELEVENLABS_LOOKUP_REQUIRED: "Find the existing conversation in ElevenLabs and bind its ID. Never redial an uncertain request.",
+      ELEVENLABS_AGENT_INVALID: "Configure the dedicated DwellCall prompt, end_call tool, signed webhook, zero provider retention and bounded duration.",
+      ELEVENLABS_TRUNK_INVALID: "Check the imported ElevenLabs SIP number, authorized caller, Telnyx TLS trunk and credentials.",
+      ELEVENLABS_READ_UNAVAILABLE: "ElevenLabs could not confirm configuration or status. Check provider access.",
+      DEMO_PHONE_VERIFICATION_REQUIRED: "Verify your number with a new text-message code before requesting a demo call.",
+      DEMO_SMS_CODE_INVALID: "The code is invalid or expired. Check the text and try again.",
+      DEMO_SMS_LIMIT: "The text verification limit was reached. Try later.",
+      OUTBOUND_TRANSCRIPT_CONSENT_REQUIRED: "Explicit permission for transcript retention and OpenAI analysis is required.",
       BILLING_UNAVAILABLE: "Paid billing is not available yet.",
       BILLING_APPROVAL_REQUIRED: "Owner approval is required before purchasing or managing a subscription.",
       BILLING_MODE_MISMATCH: "This billing account belongs to another Stripe environment. The owner must review configuration.",

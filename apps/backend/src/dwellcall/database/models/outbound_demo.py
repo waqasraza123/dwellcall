@@ -17,6 +17,10 @@ class OutboundCall(UuidPrimaryKeyMixin, Base):
         Index("ix_outbound_calls_created", "created_at"),
         Index("ix_outbound_calls_destination_created", "destination_hash", "created_at"),
     )
+    call_purpose: Mapped[str] = mapped_column(Text, default="demonstration", server_default="demonstration")
+    intelligence_consent: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    provider: Mapped[str] = mapped_column(Text, default="retell", server_default="retell")
+    owner_hash: Mapped[str | None] = mapped_column(Text)
     request_id: Mapped[UUID] = mapped_column(unique=True)
     request_hash: Mapped[str] = mapped_column(Text)
     destination_hash: Mapped[str] = mapped_column(Text)

@@ -15,14 +15,14 @@ from dwellcall.errors import ApiError
 from dwellcall.listings.normalization import fingerprint
 from dwellcall.settings import ApiSettings
 from dwellcall.telephony.outbound.destinations import validate_destination
-from dwellcall.telephony.outbound.provider import OutboundProviderError, RetellOutboundProvider
+from dwellcall.telephony.outbound.provider import OutboundProviderError, OutboundProvider, create_outbound_provider
 from dwellcall.telephony.outbound.schemas import CallInput, CallResponse, CallStatus, ControlsInput, TransferStatus
 from dwellcall.telephony.retell.schemas import RetellCall
 from dwellcall.telephony.retell.service import AudioSessionService
 
 MESSAGES = {
     "reserved": "The request is reserved. Do not submit another call.",
-    "dialing": "Retell accepted the request. Answering has not been confirmed.",
+    "dialing": "The provider accepted the request. Answering has not been confirmed.",
     "ringing": "The provider reports ringing. Answering has not been confirmed.",
     "in_progress": "The AI conversation is in progress.",
     "completed": "The call ended. No follow-up or appointment was arranged.",
@@ -42,10 +42,12 @@ def unavailable(message: str = "Outbound calling is disabled") -> ApiError:
 class OutboundCallService:
     """Adapted from HVACLine's durable outbound service; uses the existing audio lock."""
 
-    def __init__(self, sessions: sessionmaker[Session], settings: ApiSettings, provider: RetellOutboundProvider) -> None:
+    def __init__(self, sessions: sessionmaker[Session], settings: ApiSettings, provider: OutboundProvider) -> None:
         self.sessions = sessions
         self.settings = settings
         self.provider = provider
+        from dwellcall.telephony.outbound.intelligence import CallIntelligenceService
+        self.intelligence = CallIntelligenceService(sessions, settings)
 
     def _hash(self, purpose: str, value: str) -> str:
         secret = self.settings.outbound_hash_secret
@@ -106,7 +108,7 @@ class OutboundCallService:
         if number in {self.settings.outbound_from_number.get_secret_value(), self.settings.outbound_human_number.get_secret_value()}:
             raise ApiError(status_code=403, code="OUTBOUND_CALL_LOOP", message="Caller, recipient and human transfer numbers must differ")
 
-    def _reserve(self, data: CallInput) -> tuple[UUID, CallResponse | None]:
+    def _reserve(self, data: CallInput, owner: str | None = None) -> tuple[UUID, CallResponse | None]:
         now = datetime.now(UTC)
         request_hash = self._hash("request", data.model_dump_json())
         destination = self._hash("destination", data.phone_number)
@@ -115,10 +117,14 @@ class OutboundCallService:
             guard = self._lock(session)
             existing = session.scalar(select(OutboundCall).where(OutboundCall.request_id == data.request_id))
             if existing is not None:
-                if not hmac.compare_digest(existing.request_hash, request_hash):
+                if not hmac.compare_digest(existing.request_hash, request_hash) or existing.owner_hash != (self._hash("owner", owner) if owner else None):
                     raise ApiError(status_code=409, code="OUTBOUND_REQUEST_CONFLICT", message="This request ID belongs to a different call; inspect its existing status")
                 return existing.id, self._response(existing)
+            if self.settings.outbound_intelligence_enabled and data.consent_version != "dwellcall-ai-call-v2":
+                raise ApiError(status_code=422, code="OUTBOUND_TRANSCRIPT_CONSENT_REQUIRED", message="Confirm transcript retention and OpenAI analysis with the current consent version")
             self._policy(session, guard, data.phone_number)
+            if owner and session.scalar(select(OutboundCall.id).where(OutboundCall.owner_hash == self._hash("owner", owner), OutboundCall.created_at >= now - timedelta(days=1)).limit(1)):
+                raise ApiError(status_code=429, code="OUTBOUND_CALL_LIMIT", message="One demonstration per account per day")
             base = select(OutboundCall).where(OutboundCall.created_at >= today)
             daily = session.scalar(select(func.count()).select_from(base.subquery())) or 0
             number_daily = session.scalar(select(func.count()).select_from(base.where(OutboundCall.destination_hash == destination).subquery())) or 0
@@ -135,11 +141,14 @@ class OutboundCallService:
             )
             agent_version = self.settings.outbound_agent_version
             if agent_version is None:
-                raise unavailable("Pin the dedicated outbound agent version")
+                agent_version = 0
+            if owner:
+                from dwellcall.telephony.outbound.verification import PhoneVerificationService
+                PhoneVerificationService.consume(session, self._hash("owner", owner), destination, data.phone_verification_id, data.request_id)
             row = OutboundCall(
-                id=call_id, request_id=data.request_id, request_hash=request_hash,
+                id=call_id, call_purpose=data.call_purpose, intelligence_consent=self.settings.outbound_intelligence_enabled and data.consent_version == "dwellcall-ai-call-v2", provider=self.settings.outbound_provider, owner_hash=self._hash("owner", owner) if owner else None, request_id=data.request_id, request_hash=request_hash,
                 destination_hash=destination, audio_session_id=audio_id,
-                agent_id=self.settings.outbound_agent_id or "", agent_version=agent_version,
+                agent_id=self.settings.outbound_agent_id or "", agent_version=0 if self.settings.outbound_provider == "elevenlabs" else agent_version,
                 caller_hash=self._hash("caller", self.settings.outbound_from_number.get_secret_value()),
                 scenario=data.scenario, consent_version=data.consent_version, consent_at=now,
                 created_at=now, status="reserved", transfer_status="not_requested",
@@ -150,8 +159,8 @@ class OutboundCallService:
             self._event(session, row, "operator_consent_dnc_review_and_reservation")
             return row.id, None
 
-    def create(self, data: CallInput) -> CallResponse:
-        call_id, existing = self._reserve(data)
+    def create(self, data: CallInput, owner: str | None = None) -> CallResponse:
+        call_id, existing = self._reserve(data, owner)
         if existing is not None:
             return existing
         sent = False
@@ -177,7 +186,7 @@ class OutboundCallService:
                 self._policy(session, guard, data.phone_number)
                 sent = True
                 receipt = self.provider.dial(data, str(call_id), request_hash)
-            self.apply(receipt, "receipt")
+            self.apply(receipt, "receipt", source_provider=self.settings.outbound_provider)
         except OutboundProviderError as error:
             return self._failure(call_id, error.code, error.outcome_unknown)
         except ApiError as error:
@@ -195,10 +204,10 @@ class OutboundCallService:
             self._event(session, row, "provider_error")
             return self._response(row)
 
-    def _identity(self, row: OutboundCall, call: RetellCall) -> None:
+    def _identity(self, row: OutboundCall, call: RetellCall, source_provider: str = "retell") -> None:
         metadata = call.metadata or {}
         if (
-            call.call_type != "phone_call" or call.direction != "outbound"
+            row.provider != source_provider or call.call_type != "phone_call" or call.direction != "outbound"
             or call.agent_id != row.agent_id or call.agent_version != row.agent_version
             or metadata.get("dwellcall_outbound_id") != str(row.id)
             or metadata.get("authorization") != row.request_hash
@@ -220,7 +229,7 @@ class OutboundCallService:
         else:
             row.finalized_at = audio.finalized_at = None
 
-    def apply(self, call: RetellCall, kind: str, digest: str | None = None) -> UUID:
+    def apply(self, call: RetellCall, kind: str, digest: str | None = None, *, source_provider: str = "retell") -> UUID:
         try:
             call_id = UUID(str((call.metadata or {}).get("dwellcall_outbound_id", "")))
         except ValueError:
@@ -228,7 +237,7 @@ class OutboundCallService:
         with self.sessions() as session, session.begin():
             self._lock(session)
             row = self._row(session, call_id)
-            self._identity(row, call)
+            self._identity(row, call, source_provider)
             if digest and session.scalar(select(OutboundCallEvent.id).where(OutboundCallEvent.fingerprint == digest)) is not None:
                 return row.id
             if row.mock and kind != "mock":
@@ -298,7 +307,7 @@ class OutboundCallService:
             agent_version=row.agent_version, call_type="phone_call", direction="outbound",
             call_status="ended" if elapsed >= 15 else "ongoing" if elapsed >= 2 else "registered",
             from_number=self.settings.outbound_from_number.get_secret_value(), to_number=number,
-            metadata={"dwellcall_outbound_id": str(row.id), "authorization": row.request_hash},
+            metadata={"dwellcall_outbound_id": str(row.id), "authorization": row.request_hash, "provider": row.provider},
             start_timestamp=int((row.created_at.timestamp() + 2) * 1000) if elapsed >= 2 else None,
             duration_ms=13000 if elapsed >= 15 else None,
             disconnection_reason="agent_hangup" if elapsed >= 15 else None,
@@ -309,7 +318,7 @@ class OutboundCallService:
             row = self._row(session, call_id)
             snapshot = self._mock_snapshot(row) if row.mock and row.send_started_at is not None and row.finalized_at is None else None
         if snapshot is not None:
-            self.apply(snapshot, "mock")
+            self.apply(snapshot, "mock", source_provider=str((snapshot.metadata or {}).get("provider", self.settings.outbound_provider)))
         with self.sessions() as session, session.begin():
             self._lock(session)
             row = self._row(session, call_id)
@@ -337,18 +346,29 @@ class OutboundCallService:
             mock = row.mock
             bound = row.provider_call_id
             request_hash = row.request_hash
+            provider_name = row.provider
         if mock:
             return self.get(call_id)
         try:
             lookup_id = provider_call_id or bound
-            call = self.provider.retrieve(lookup_id) if lookup_id else self.provider.find(str(call_id), request_hash)
+            provider = self.provider if provider_name == self.settings.outbound_provider else create_outbound_provider(self.settings, provider_name)
+            call = provider.retrieve(lookup_id) if lookup_id else provider.find(str(call_id), request_hash)
         except OutboundProviderError as error:
             raise ApiError(status_code=503, code=error.code, message=str(error)) from None
         if call is not None:
             if (call.metadata or {}).get("dwellcall_outbound_id") != str(call_id):
                 raise ApiError(status_code=403, code="OUTBOUND_CALL_IDENTITY_INVALID", message="This provider call belongs to another request")
-            self.apply(call, "operator_reconciliation")
+            self.apply(call, "operator_reconciliation", source_provider=provider_name)
+            self.intelligence.capture(call_id, call.transcript_object)
+            self.intelligence.process(call_id)
         return self.get(call_id)
+
+    def call_context(self, audio_id: str) -> tuple[str, bool]:
+        with self.sessions() as session:
+            row = session.scalar(select(OutboundCall).where(OutboundCall.audio_session_id == audio_id))
+            if row is None:
+                raise unavailable()
+            return row.call_purpose, row.intelligence_consent
 
     def admit_phone(self, call: RetellCall) -> tuple[str, str]:
         call_id = self.apply(call, "phone_identity_verified")
@@ -443,7 +463,7 @@ class OutboundCallService:
             row = self._row(session, call_id)
             if row.finalized_at is not None:
                 return self._response(row)
-            provider_id, mock = row.provider_call_id, row.mock
+            provider_id, mock, provider_name = row.provider_call_id, row.mock, row.provider
             self._event(session, row, "operator_stop_requested")
             if row.send_started_at is None:
                 row.status = "failed"
@@ -462,7 +482,8 @@ class OutboundCallService:
             if not provider_id:
                 raise unavailable("The provider call is still unconfirmed; reconcile and request stop again. The reservation remains held")
         try:
-            self.provider.stop(provider_id)
+            provider = self.provider if provider_name == self.settings.outbound_provider else create_outbound_provider(self.settings, provider_name)
+            provider.stop(provider_id)
         except OutboundProviderError as error:
             raise ApiError(status_code=503, code=error.code, message=str(error)) from None
         return self.refresh(call_id)
@@ -489,7 +510,7 @@ class OutboundCallService:
             message = "SIMULATED — no telephone call. " + message
         return CallResponse(
             id=row.id, request_id=row.request_id, status=CallStatus(row.status),
-            provider_call_id=row.provider_call_id,
+            provider=row.provider, call_purpose=row.call_purpose, provider_call_id=row.provider_call_id,
             transfer_status=cast(TransferStatus, row.transfer_status), scenario=row.scenario,
             created_at=row.created_at, started_at=row.started_at, finalized_at=row.finalized_at,
             duration_seconds=row.duration_seconds, terminal=row.finalized_at is not None,

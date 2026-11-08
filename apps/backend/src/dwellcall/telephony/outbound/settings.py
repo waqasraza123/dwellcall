@@ -1,4 +1,4 @@
-from typing import Self
+from typing import Literal, Self
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
@@ -7,6 +7,26 @@ from dwellcall.telephony.outbound.destinations import destination_country, norma
 
 
 class OutboundSettings(BaseModel):
+    outbound_provider: Literal["elevenlabs", "retell"] = "elevenlabs"
+    elevenlabs_api_key: SecretStr | None = None
+    outbound_phone_number_id: str | None = Field(default=None, min_length=1, max_length=200)
+    outbound_webhook_secret: SecretStr | None = Field(default=None, min_length=32)
+    outbound_website_enabled: bool = False
+    outbound_live_verified: bool = False
+    outbound_sms_daily_limit: int = Field(default=20, ge=1, le=100)
+    outbound_sms_account_daily_limit: int = Field(default=3, ge=1, le=5)
+    outbound_sms_number_daily_limit: int = Field(default=3, ge=1, le=5)
+    outbound_sms_cooldown_seconds: int = Field(default=60, ge=60, le=3600)
+    outbound_sms_ttl_seconds: int = Field(default=300, ge=120, le=600)
+    telnyx_verify_api_key: SecretStr | None = None
+    telnyx_verify_profile_id: str | None = Field(default=None, pattern=r"^[0-9a-fA-F-]{36}$")
+    outbound_intelligence_enabled: bool = False
+    outbound_transcript_encryption_key: SecretStr | None = None
+    openai_api_key: SecretStr | None = None
+    outbound_analysis_model: str | None = None
+    outbound_qualification_criteria: str | None = Field(default=None, max_length=8000)
+    outbound_analysis_daily_limit: int = Field(default=10, ge=1, le=50)
+    outbound_transcript_retention_days: int = Field(default=30, ge=1, le=90)
     outbound_enabled: bool = False
     outbound_mock_enabled: bool = False
     outbound_agent_id: str | None = Field(default=None, min_length=1, max_length=200)
@@ -37,7 +57,7 @@ class OutboundSettings(BaseModel):
     outbound_transfer_max_seconds: int = Field(default=180, ge=1, le=180)
     outbound_transfer_reserved_cost_cents: int = Field(default=0, ge=0, le=100000)
 
-    @field_validator("outbound_agent_id", "outbound_agent_version", "outbound_hash_secret", "outbound_public_base_url", mode="before")
+    @field_validator("outbound_agent_id", "outbound_agent_version", "outbound_hash_secret", "outbound_public_base_url", "elevenlabs_api_key", "outbound_phone_number_id", "outbound_webhook_secret", "telnyx_verify_api_key", "telnyx_verify_profile_id", "openai_api_key", "outbound_transcript_encryption_key", "outbound_analysis_model", "outbound_qualification_criteria", mode="before")
     @classmethod
     def empty_optional(cls, value: object) -> object:
         return (value.strip() or None) if isinstance(value, str) else value
@@ -68,8 +88,30 @@ class OutboundSettings(BaseModel):
     def _numbers(secret: SecretStr) -> frozenset[str]:
         return frozenset(normalize_phone_number(value) for value in secret.get_secret_value().split(",") if value.strip())
 
+    @property
+    def website_available(self) -> bool:
+        return bool(self.outbound_website_enabled and self.outbound_enabled and self.outbound_live_verified and self.telnyx_verify_api_key and self.telnyx_verify_profile_id)
+
     @model_validator(mode="after")
     def outbound_configuration(self) -> Self:
+        if self.outbound_intelligence_enabled:
+            if not all((self.outbound_transcript_encryption_key, self.openai_api_key, self.outbound_analysis_model, self.outbound_qualification_criteria)):
+                raise ValueError("Call intelligence requires encryption, OpenAI credentials, an analysis model and qualification criteria")
+            from cryptography.fernet import Fernet
+            encryption_key = self.outbound_transcript_encryption_key
+            if encryption_key is None:
+                raise ValueError("Configure transcript encryption")
+            try:
+                Fernet(encryption_key.get_secret_value().encode())
+            except (ValueError, TypeError):
+                raise ValueError("OUTBOUND_TRANSCRIPT_ENCRYPTION_KEY must be a Fernet key") from None
+        if self.outbound_website_enabled and not self.website_available:
+            raise ValueError("Website calls require live acceptance and Telnyx Verify configuration")
+        if self.outbound_enabled and self.outbound_provider == "elevenlabs":
+            if not all((self.elevenlabs_api_key, self.outbound_phone_number_id, self.outbound_webhook_secret)):
+                raise ValueError("ElevenLabs outbound requires its API key, SIP phone ID and signed webhook secret")
+            if self.outbound_webhook_secret == self.outbound_hash_secret:
+                raise ValueError("Webhook and hashing secrets must differ")
         if self.outbound_transfer_enabled:
             raise ValueError("Outbound transfer is disabled permanently; DwellCall is operated only by AI agents")
         if self.outbound_allowed_countries != frozenset({"US"}) or self.outbound_confirmed_international_countries:
@@ -92,7 +134,7 @@ class OutboundSettings(BaseModel):
             return self
         if not allowed or not self.outbound_hash_secret:
             raise ValueError("Outbound calling requires an approved allowlist and stable hash secret")
-        if not self.outbound_agent_id or self.outbound_agent_version is None or not self.outbound_from_number.get_secret_value():
+        if not self.outbound_agent_id or (self.outbound_provider == "retell" and self.outbound_agent_version is None) or not self.outbound_from_number.get_secret_value():
             raise ValueError("Configure an outbound agent version and imported caller number")
         caller = self.outbound_from_number.get_secret_value()
         human = self.outbound_human_number.get_secret_value()

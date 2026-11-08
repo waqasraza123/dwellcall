@@ -48,16 +48,16 @@ def create_app(
     )
     gateway = None
     consultant = None
-    from dwellcall.telephony.outbound.provider import RetellOutboundProvider
+    from dwellcall.telephony.outbound.provider import create_outbound_provider
     from dwellcall.telephony.outbound.routes import create_outbound_router
     from dwellcall.telephony.outbound.service import OutboundCallService
 
-    outbound = OutboundCallService(session_factory, settings, RetellOutboundProvider(settings))
-    if settings.retell_test_audio_enabled or settings.outbound_enabled or settings.browser_text_enabled:
+    outbound = OutboundCallService(session_factory, settings, create_outbound_provider(settings))
+    if settings.retell_test_audio_enabled or (settings.outbound_enabled and settings.outbound_provider == "retell") or settings.browser_text_enabled:
         from dwellcall.consultant.catalog import load_catalog
         from dwellcall.consultant.graph import PropertyConsultant
         consultant = PropertyConsultant(settings, load_catalog(settings))
-    if settings.retell_test_audio_enabled or settings.outbound_enabled or (settings.retell_api_key and settings.outbound_agent_id):
+    if settings.retell_test_audio_enabled or (settings.outbound_provider == "retell" and (settings.outbound_enabled or (settings.retell_api_key and settings.outbound_agent_id))):
         from dwellcall.telephony.retell.provider import RetellGateway
 
         gateway = RetellGateway(settings)
@@ -104,6 +104,8 @@ def create_app(
     application.include_router(create_agent_crm_router(settings, session_factory, crm))
     application.include_router(create_agent_crm_router(settings, session_factory, crm, provider_name="hubspot"))
     application.include_router(create_outbound_router(settings, outbound))
+    from dwellcall.telephony.outbound.demo_routes import create_demo_router
+    application.include_router(create_demo_router(settings, outbound))
     application.include_router(create_conversation_router(settings, browser))
     if gateway is not None:
         from dwellcall.telephony.retell.routes import create_retell_router

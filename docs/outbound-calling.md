@@ -1,3 +1,8 @@
+> Superseded for new outbound setup by [ElevenLabs and call intelligence](call-intelligence.md).
+> ElevenLabs is now the default; this guide retains the optional Retell setup.
+> Consented encrypted transcript retention/OpenAI analysis supersedes the earlier
+> no-local-transcript policy only when call intelligence is enabled.
+
 # Retell + Telnyx outbound — UNVERIFIED
 
 Source only. No checks, installs, migrations, services, provider changes or calls ran.

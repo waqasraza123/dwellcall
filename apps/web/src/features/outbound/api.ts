@@ -28,7 +28,7 @@ export function unresolvedCall(history: OutboundCall[]): OutboundCall | null {
 export async function requestCall(requestId: string, phone: string, scenario: Scenario): Promise<OutboundCall> {
   const result = await callRequest("calls", "POST", {
     request_id: requestId, phone_number: phone, scenario, consent: true,
-    consent_version: "dwellcall-ai-call-v1", recipient_consent_confirmed: true, do_not_call_checked: true,
+    consent_version: "dwellcall-ai-call-v2", call_purpose: "qualification", recipient_consent_confirmed: true, do_not_call_checked: true,
   }, requestId);
   if (!isOutboundCall(result) || result.request_id !== requestId) throw new Error("The provider receipt could not be confirmed. Recover the saved request.");
   return result;

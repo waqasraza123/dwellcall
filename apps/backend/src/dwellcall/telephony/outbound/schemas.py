@@ -28,11 +28,13 @@ TransferStatus = Literal["not_requested", "requested", "refer_accepted", "failed
 
 class CallInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    call_purpose: Literal["demonstration", "qualification"] = "qualification"
+    phone_verification_id: UUID | None = None
     request_id: UUID
     phone_number: str = Field(min_length=1, max_length=64)
     scenario: Literal["renting", "buying", "luxury"]
     consent: Literal[True]
-    consent_version: Literal["dwellcall-ai-call-v1"]
+    consent_version: Literal["dwellcall-ai-call-v1", "dwellcall-ai-call-v2"]
     recipient_consent_confirmed: Literal[True]
     do_not_call_checked: Literal[True]
 
@@ -50,7 +52,9 @@ class CallInput(BaseModel):
 
 
 class CallResponse(BaseModel):
+    provider: Literal["elevenlabs", "retell"] = "retell"
     id: UUID
+    call_purpose: Literal["demonstration", "qualification"] = "qualification"
     request_id: UUID
     provider_call_id: str | None = None
     status: CallStatus

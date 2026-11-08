@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./styles.css";
+import "@/features/outbound-demo/outbound-demo.css";
 export const metadata: Metadata = {
   title: {
     default: "DwellCall | AI Real Estate Lead Intelligence",

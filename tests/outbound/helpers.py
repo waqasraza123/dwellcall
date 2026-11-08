@@ -8,7 +8,7 @@ from dwellcall.telephony.retell.schemas import RetellCall
 def call_input(**updates: object) -> CallInput:
     return CallInput.model_validate({
         "request_id": str(uuid4()), "phone_number": "+12025550124", "scenario": "renting",
-        "consent": True, "consent_version": "dwellcall-ai-call-v1",
+        "call_purpose": "demonstration", "consent": True, "consent_version": "dwellcall-ai-call-v1",
         "recipient_consent_confirmed": True, "do_not_call_checked": True, **updates,
     })
 

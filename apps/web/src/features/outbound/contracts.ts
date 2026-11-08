@@ -3,12 +3,14 @@ export type Scenario = keyof typeof scenarios;
 export const statuses = ["reserved", "dialing", "ringing", "in_progress", "completed", "rejected", "unanswered", "failed", "unknown", "transferred", "transfer_unconfirmed"] as const;
 export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export type OutboundCall = {
+  provider?: "elevenlabs" | "retell";
   id: string; request_id: string; provider_call_id: string | null; status: typeof statuses[number];
   transfer_status: "not_requested" | "requested" | "refer_accepted" | "failed" | "unconfirmed";
   scenario: string; created_at: string; started_at: string | null; finalized_at: string | null;
   duration_seconds: number | null; terminal: boolean; mock: boolean; message: string; error_code: string | null;
 };
 export type Availability = {
+  provider?: "elevenlabs" | "retell"; intelligence_enabled?: boolean;
   available: boolean; mock: boolean; transfer_available: boolean; max_duration_seconds: number;
   daily_limit: number; countries: string[]; calls_paused: boolean; transfers_paused: boolean;
 };
