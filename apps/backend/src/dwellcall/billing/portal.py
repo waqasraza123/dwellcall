@@ -4,7 +4,6 @@ import stripe
 from stripe.params.billing_portal import ConfigurationCreateParams, ConfigurationUpdateParams
 
 from dwellcall.settings import ApiSettings
-from dwellcall.billing.catalog import STRIPE_PRODUCT_ID
 
 type PortalAudience = Literal["management", "pro", "team"]
 
@@ -28,7 +27,7 @@ def setup_portal_configurations(
     identifiers: dict[str, str] = {}
     for audience, setting in PORTAL_SETTINGS.items():
         parameters: ConfigurationCreateParams = {
-            "metadata": {"dwellcall_catalog": "v2", "dwellcall_audience": audience},
+            "metadata": {"dwellcall_catalog": "v2", "dwellcall_audience": audience, "dwellcall_product_id": settings.stripe_product_id},
             "business_profile": {"headline": "Manage your DwellCall subscription"},
             "default_return_url": f"{settings.web_origin.rstrip('/')}/billing",
             "features": {
@@ -45,12 +44,12 @@ def setup_portal_configurations(
                 "enabled": True, "default_allowed_updates": ["price"],
                 "proration_behavior": "always_invoice",
                 "schedule_at_period_end": {"conditions": [{"type": "decreasing_item_amount"}]},
-                "products": [{"product": STRIPE_PRODUCT_ID, "prices": [price_ids[target]]}],
+                "products": [{"product": settings.stripe_product_id, "prices": [price_ids[target]]}],
             }
         configuration = existing.get(audience)
         if configuration is None:
             configuration = client.v1.billing_portal.configurations.create(
-                parameters, options={"idempotency_key": f"dwellcall:catalog:portal:{audience}:v2"},
+                parameters, options={"idempotency_key": f"dwellcall:catalog:portal:{audience}:{settings.stripe_product_id}:v3"},
             )
         else:
             configuration = client.v1.billing_portal.configurations.update(

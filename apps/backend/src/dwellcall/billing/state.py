@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Any, cast
 
-from dwellcall.billing.catalog import PLANS, STRIPE_PRODUCT_ID, PlanKey
+from dwellcall.billing.catalog import PLANS, PlanKey
 from dwellcall.database.models.billing import BillingAccount
 from dwellcall.settings import ApiSettings
 
@@ -39,7 +39,7 @@ def apply_subscription(account: BillingAccount, data: dict[str, Any], settings: 
     item = items[0]
     price = item.get("price", {})
     plan = next((key for key, value in {"pro": settings.stripe_pro_price_id, "team": settings.stripe_team_price_id}.items() if value and value == price.get("id")), None)
-    if plan is None or price.get("product") != STRIPE_PRODUCT_ID or price.get("currency") != "usd" or price.get("unit_amount") != PLANS[cast(PlanKey, plan)].amount or price.get("recurring", {}).get("interval") != "month" or price.get("recurring", {}).get("interval_count") != 1:
+    if plan is None or price.get("product") != settings.stripe_product_id or price.get("currency") != "usd" or price.get("unit_amount") != PLANS[cast(PlanKey, plan)].amount or price.get("recurring", {}).get("interval") != "month" or price.get("recurring", {}).get("interval_count") != 1:
         account.status = "needs_review"
         return
     invoice = data.get("latest_invoice")

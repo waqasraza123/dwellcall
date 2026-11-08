@@ -51,6 +51,7 @@ source integration. All Stripe configuration lives in the backend `.env`:
 BILLING_ENABLED=false
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
+STRIPE_PRODUCT_ID=dwellcall_subscription_v1
 STRIPE_PRO_PRICE_ID=
 STRIPE_TEAM_PRICE_ID=
 STRIPE_PORTAL_CONFIGURATION_ID=
@@ -65,6 +66,14 @@ database. Retain `DATABASE_URL` (pooled), `DIRECT_DATABASE_URL` (direct),
 Production billing requires an HTTPS `WEB_ORIGIN`. Test/live keys must match
 `STRIPE_LIVE_MODE`; a customer binding cannot switch modes. Use a separate live
 billing database rather than repurposing records from sandbox.
+
+`STRIPE_PRODUCT_ID` defaults to `dwellcall_subscription_v1` when omitted. To use
+an existing manually created product, set it to that product's `prod_...` ID and
+set `STRIPE_PRO_PRICE_ID` and `STRIPE_TEAM_PRICE_ID` to its existing prices in the
+same Stripe account and mode. Both prices must be active, USD, recurring every
+one month, at 2900 and 7900 cents respectively. Setup retrieves and validates
+explicit price IDs without requiring lookup keys or modifying those prices.
+Checkout and subscription reconciliation validate the configured product ID.
 
 The web app uses its existing `DWELLCALL_API_BASE_URL` and
 `DWELLCALL_ACCOUNT_PORTAL_SECRET`; no Stripe secrets or price IDs belong in
@@ -97,16 +106,23 @@ configurations. It writes to Stripe when **you** run it:
 python -m dwellcall.billing.cli setup
 ```
 
-Store the five returned price/configuration IDs in the backend environment. The
-product is `dwellcall_subscription_v1`; lookup keys and idempotency namespaces
-start with `dwellcall`, leaving Quantrift's catalog untouched. Existing
-incompatible prices or an archived product require owner review.
+Store the five returned price/configuration IDs in the backend environment.
+Setup retrieves `STRIPE_PRODUCT_ID`; a missing `prod_...` product fails for owner
+review rather than creating a replacement. The default custom product can still
+be created on first setup. Explicitly configured price IDs take precedence over
+the managed `dwellcall_pro_monthly_v1` / `dwellcall_team_monthly_v1` lookup keys.
+When neither an explicit ID nor a managed lookup match exists, setup creates a
+price, so configure both existing price IDs before setup to avoid duplicates.
+Creation idempotency keys include the product ID. Existing incompatible prices,
+a mode mismatch, or an archived product require owner review.
 
 The management portal handles invoices, payment details and period-end
 cancellation. The Pro portal offers Team as its upgrade target; the Team portal
 offers Pro as its downgrade target. Upgrades invoice prorations immediately;
 decreasing-price changes are scheduled for period end. Each portal catalog has
 one monthly target price for the shared product, as in Quantrift.
+All three configurations record the configured product in metadata; management
+keeps plan changes disabled, while Pro and Team target that product's prices.
 
 Register a snapshot webhook destination on the final HTTPS hostname, without a
 redirect, using either:
@@ -184,6 +200,23 @@ can be found, retain the reservation for owner investigation.
 ## Owner verification
 
 No commands below have been run:
+
+For the configurable product change, run the isolated mocked specifications
+(no database connection or Stripe API calls):
+
+```bash
+python -m pytest tests/billing/test_catalog.py tests/billing/test_gateway.py tests/billing/test_portal.py
+```
+
+These cover the legacy default, `.env` and environment overrides, manually
+configured products/prices without duplication, rejection of invalid product IDs,
+missing generated products, incompatible prices, checkout/reconciliation product
+and mode validation, and all three portal configurations. Manually review the
+backend product/price IDs together in the same Stripe sandbox; Free remains local
+and both paid prices must belong to the configured product. No Stripe setup
+command is needed to run these mocked specifications.
+
+Broader owner acceptance commands:
 
 ```bash
 python -m pytest tests/billing tests/accounts

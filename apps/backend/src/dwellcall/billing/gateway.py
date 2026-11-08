@@ -7,7 +7,7 @@ import stripe
 
 from dwellcall.settings import ApiSettings
 from dwellcall.billing.errors import billing_error as AppError
-from dwellcall.billing.catalog import PLANS, STRIPE_PRODUCT_ID, PlanKey
+from dwellcall.billing.catalog import PLANS, PlanKey
 
 type StripeData = dict[str, Any]
 
@@ -81,7 +81,7 @@ class StripeGateway:
         origin = self.settings.web_origin.rstrip("/")
         with self.client() as client:
             price = client.v1.prices.retrieve(self.price(plan))
-            if price.livemode is not self.settings.stripe_live_mode or not price.active or price.product != STRIPE_PRODUCT_ID or price.currency != "usd" or (
+            if price.livemode is not self.settings.stripe_live_mode or not price.active or price.product != self.settings.stripe_product_id or price.currency != "usd" or (
                 price.unit_amount != PLANS[plan].amount or price.recurring is None
                 or price.recurring.interval != "month" or price.recurring.interval_count != 1
             ):

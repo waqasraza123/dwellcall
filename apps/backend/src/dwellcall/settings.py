@@ -8,6 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
 
+from dwellcall.billing.catalog import STRIPE_PRODUCT_ID
 from dwellcall.telephony.outbound.settings import OutboundSettings
 
 
@@ -111,6 +112,7 @@ class ApiSettings(OutboundSettings, DatabaseConnectionSettings):
     billing_enabled: bool = False
     stripe_secret_key: SecretStr | None = None
     stripe_webhook_secret: SecretStr | None = None
+    stripe_product_id: str = Field(default=STRIPE_PRODUCT_ID, pattern=r"^[A-Za-z0-9_]+$", max_length=255)
     stripe_pro_price_id: str | None = Field(default=None, pattern=r"^price_[A-Za-z0-9_]+$")
     stripe_team_price_id: str | None = Field(default=None, pattern=r"^price_[A-Za-z0-9_]+$")
     stripe_portal_configuration_id: str | None = Field(default=None, pattern=r"^bpc_[A-Za-z0-9_]+$")

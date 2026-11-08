@@ -1,3 +1,21 @@
+## Configurable Stripe product publication authorized — 2026-11-08
+
+- Owner authorizes pushing the pending configurable Stripe product source,
+  specifications and guide to main. Includes explicit product/price reuse and
+  matching checkout, subscription reconciliation and portal validation.
+- Publish with hooks disabled and skip markers. No verification, Stripe setup/API
+  calls, migrations, services or deployment commands authorized or executed.
+  Implementation remains UNVERIFIED; owner commands remain in docs/billing.md.
+
+## Lead review publication completed — 2026-11-08
+
+- Owner-authorized commit bb11747 pushed to origin/main; GitHub accepted
+  284eefe..bb11747. Includes 23 lead-review/task source, specification and guide
+  files. Verification hooks disabled; skip markers retained.
+- Unrelated pending Stripe changes excluded. No tests, builds, checks, installs,
+  migrations, services, provider calls or deployment commands ran. Migration 0013
+  remains unapplied and implementation remains UNVERIFIED.
+
 ## Lead review and task source — 2026-11-08 — UNVERIFIED
 
 - Owner requests publishing outbound work and implementing the next step. Added

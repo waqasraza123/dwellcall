@@ -1,12 +1,16 @@
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import pytest
+
 from dwellcall.billing.catalog import STRIPE_PRODUCT_ID
 from dwellcall.billing.gateway import StripeGateway
 from dwellcall.billing.portal import setup_portal_configurations
 
 
-def test_portal_upgrade_and_downgrade_catalogs_are_independent_and_reused(settings) -> None:
+@pytest.mark.parametrize("product_id", [STRIPE_PRODUCT_ID, "prod_synthetic"])
+def test_portal_upgrade_and_downgrade_catalogs_are_independent_and_reused(settings, product_id) -> None:
+    settings = settings.model_copy(update={"stripe_product_id": product_id})
     client = Mock()
     configurations = client.v1.billing_portal.configurations
     stored = []
@@ -23,13 +27,14 @@ def test_portal_upgrade_and_downgrade_catalogs_are_independent_and_reused(settin
     for call in configurations.create.call_args_list:
         data = call.args[0]
         audience = data["metadata"]["dwellcall_audience"]
+        assert data["metadata"]["dwellcall_product_id"] == product_id
         assert data["features"]["subscription_cancel"] == {"enabled": True, "mode": "at_period_end"}
         changes = data["features"]["subscription_update"]
         if audience == "management":
             assert changes == {"enabled": False}
         else:
             target = "price_team" if audience == "pro" else "price_pro"
-            assert changes["products"] == [{"product": STRIPE_PRODUCT_ID, "prices": [target]}]
+            assert changes["products"] == [{"product": product_id, "prices": [target]}]
             assert changes["proration_behavior"] == "always_invoice"
             assert changes["schedule_at_period_end"] == {"conditions": [{"type": "decreasing_item_amount"}]}
     assert setup_portal_configurations(client, settings, prices) == first
