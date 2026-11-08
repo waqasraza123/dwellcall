@@ -170,3 +170,10 @@ Manual checks:
 
 All source, migration compatibility, provider behavior and UI remain **UNVERIFIED**
 until the owner reports results. No deployment or provider activation was performed.
+
+## Lead review and local tasks
+
+The next source milestone adds deliberate approval/defer/reject decisions and local
+follow-up tracking. Setup and unexecuted acceptance commands:
+[Reviewed platform leads and follow-up tasks](call-lead-reviews.md). Migration 0013
+is unapplied; this milestone remains UNVERIFIED.

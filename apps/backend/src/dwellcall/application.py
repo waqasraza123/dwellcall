@@ -104,6 +104,8 @@ def create_app(
     application.include_router(create_agent_crm_router(settings, session_factory, crm))
     application.include_router(create_agent_crm_router(settings, session_factory, crm, provider_name="hubspot"))
     application.include_router(create_outbound_router(settings, outbound))
+    from dwellcall.telephony.outbound.review_routes import create_lead_review_router
+    application.include_router(create_lead_review_router(settings, outbound))
     from dwellcall.telephony.outbound.demo_routes import create_demo_router
     application.include_router(create_demo_router(settings, outbound))
     application.include_router(create_conversation_router(settings, browser))

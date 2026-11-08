@@ -6,6 +6,7 @@ import { date, Status, Table } from "@/features/intelligence/ui";
 import { CallApiError, callRequest, pendingRequest, recoverCall, requestCall, unresolvedCall, STORAGE_KEY } from "./api";
 import { isAvailability, isOutboundCall, scenarios, type Availability, type OutboundCall, type Scenario } from "./contracts";
 
+import { LeadTaskInbox } from "./lead-task-inbox";
 import { LeadInbox } from "./lead-inbox";
 import { CallIntelligencePanel } from "./intelligence-panel";
 
@@ -154,6 +155,7 @@ export function OutboundCalls() {
     </div>
     {call && !call.terminal && <details><summary>Recover an uncertain call</summary><p>Lookup and binding only attach a verified existing provider call. An empty lookup never authorizes redial.</p><label>Existing provider call ID<input value={bindId} maxLength={200} onChange={e => setBindId(e.target.value)} pattern="[A-Za-z0-9_-]+"/></label><button disabled={busy || !/^[A-Za-z0-9_-]{1,200}$/.test(bindId)} onClick={() => void act(() => callAction("bind", { provider_call_id: bindId }))}>Verify and bind receipt</button><button disabled={busy} onClick={() => confirm("Confirm every carrier leg ended?", "Check the voice provider and Telnyx records first, including every transferred leg. This records your confirmation and releases the unresolved reservation. Transfer initiation does not establish that a human answered.", "I verified all carrier legs ended", () => callAction("carrier-ended", { all_carrier_legs_ended: true }))}>Confirm carrier completion</button></details>}
     <details><summary>Suppress a recipient</summary><form onSubmit={e => { e.preventDefault(); const number = String(new FormData(e.currentTarget).get("number") ?? ""); confirm("Suppress this number?", "Block future calls to this recipient. This does not stop a call already in progress.", "Suppress recipient", async () => { await callRequest("suppress", "POST", { phone_number: number }); setMessage("The recipient is suppressed."); }); }}><label>Phone number<input type="tel" name="number" required maxLength={64} autoComplete="off"/></label><button disabled={busy}>Suppress number</button></form></details></section>
+    <LeadTaskInbox onSelect={selectCall}/>
     <LeadInbox onSelect={selectCall}/>
     <section className="ops-card"><h2>Recent calls</h2>{history.length ? <Table label="Outbound call history" headers={["Created (UTC)", "Scenario", "Status", "Transfer", "Action"]}>{history.map(row => <tr key={row.id}><td>{date(row.created_at)}{row.mock && <small>Simulation</small>}</td><td>{row.scenario}</td><td><Status value={row.status}/></td><td>{row.transfer_status.replaceAll("_", " ")}</td><td><button disabled={busy || (!!requestId.current && !call?.terminal && row.request_id !== requestId.current)} onClick={() => selectCall(row)}>Open request</button></td></tr>)}</Table> : <p>No call requests recorded.</p>}</section>
     {confirmation && <ConfirmActionDialog action={confirmation.action} busy={busy} onClose={() => setConfirmation(null)} onConfirm={() => void act(confirmation.task)}/>}

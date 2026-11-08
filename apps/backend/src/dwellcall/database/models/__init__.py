@@ -1,3 +1,4 @@
+from dwellcall.database.models.call_lead_review import CallLeadReview, CallLeadReviewEvent
 from dwellcall.database.models.call_intelligence import CallIntelligence
 from dwellcall.database.models.outbound_verification import OutboundPhoneVerification
 from dwellcall.database.models.billing import BillingAccount, BillingCheckout, BillingEvent
@@ -17,7 +18,7 @@ from dwellcall.database.models.intelligence import (
 )
 
 __all__ = [
-    "CallIntelligence", "OutboundPhoneVerification",
+    "CallLeadReview", "CallLeadReviewEvent", "CallIntelligence", "OutboundPhoneVerification",
     "BillingAccount", "BillingCheckout", "BillingEvent",
     "Account", "AccountAuthEvent", "AccountAuthLimit", "AccountLoginSession", "AccountMfaFactor", "AccountMfaChallenge", "AccountMfaRecoveryCode",
     "BrowserConversation",

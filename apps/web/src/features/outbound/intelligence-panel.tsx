@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { LeadReviewPanel } from "./lead-review-panel";
 import { callRequest } from "./api";
 
 type Assessment = { disposition: string; summary: string; needs: string[]; timing: string | null; crm: string | null; follow_up_permission: boolean; permission_quote: string | null; evidence_quotes: string[]; unanswered_questions: string[]; next_step: string };
@@ -37,5 +38,6 @@ export function CallIntelligencePanel({ callId, terminal }: { callId: string; te
     <div className="actions"><button disabled={busy} onClick={() => void load(false)}>Refresh analysis</button>{data && ["pending", "failed", "processing"].includes(data.status) && <button disabled={busy || !terminal} onClick={() => void load(true)}>Analyze retained transcript</button>}</div>
     {data?.transcript.length ? <details><summary>Read transcript</summary>{data.transcript.map((turn,i) => <p key={i}><strong>{turn.role === "agent" ? "DwellCall" : "Recipient"}:</strong> {turn.text}</p>)}</details> : <p>No retained transcript is available.</p>}
     {data?.expires_at && <p className="muted">Transcript access expires {new Date(data.expires_at).toLocaleDateString()}.</p>}
+    <LeadReviewPanel key={callId} callId={callId}/>
   </section>;
 }

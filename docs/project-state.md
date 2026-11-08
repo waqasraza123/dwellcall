@@ -1,3 +1,28 @@
+## Lead review and task source — 2026-11-08 — UNVERIFIED
+
+- Owner requests publishing outbound work and implementing the next step. Added
+  account/MFA-backed approve/defer/reject decisions and local follow-up task
+  scheduling, completion/cancellation and typed outcomes on `/calls`.
+- Approval/scheduling requires current real-call evidence, explicit permission,
+  allowlist/suppression eligibility and deliberate review confirmation. Expiry or
+  suppression blocks existing tasks; do-not-contact outcomes persist suppression.
+- Existing account portal/session, Neon, encryption and shared guard are reused.
+  Version checks, stable request IDs and append-only action evidence fence replay
+  and stale actions. No automatic calls, CRM writes, scheduler or notifications.
+- Owner authorizes publishing this source and migration `20261108_0013` to main.
+  Migration remains unapplied and implementation remains UNVERIFIED.
+  No checks, installs, migrations, services or provider requests ran. Owner exact
+  commands/manual checks: `docs/call-lead-reviews.md`.
+
+## Outbound publication completed — 2026-11-08
+
+- Owner-authorized commit 284eefe pushed to origin/main; GitHub accepted
+  fb908e6..284eefe. Includes 48 outbound/call-intelligence source/specification/
+  documentation files. Verification hooks disabled; skip markers retained.
+- Unrelated pending Stripe edits were excluded, including shared configuration
+  hunks. No tests, builds, checks, installs, migrations, services, provider calls
+  or deployment commands ran. Outbound implementation remains UNVERIFIED.
+
 ## Outbound publication authorized — 2026-11-08
 
 Owner authorizes pushing pending outbound/call-intelligence source to main and
