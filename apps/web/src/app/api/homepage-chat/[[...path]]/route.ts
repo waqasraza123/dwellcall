@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { platformExtensionsEnabled } from "@/lib/product-scope";
 import { NextRequest, NextResponse } from "next/server";
 import { BackendError, operatorBackend } from "@/lib/backend";
 import { authenticated } from "@/lib/operator-session";
@@ -12,6 +13,7 @@ type Context = { params: Promise<{ path?: string[] }> };
 
 async function handle(request: NextRequest, context: Context) {
   try {
+    if (!platformExtensionsEnabled()) throw new BackendError(404, "This extension is disabled.");
     if (request.headers.get("sec-fetch-site") === "cross-site") throw new BackendError(403, "Use DwellCall on this website.");
     if (request.method !== "GET") requireSameOrigin(request);
     const path = (await context.params).path?.join("/") ?? "availability";

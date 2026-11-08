@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { POST } from "./route";
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 it("preserves raw webhook bytes and the Stripe signature without account or admin credentials", async () => {
@@ -18,5 +18,15 @@ it("bounds the actual body even without a Content-Length header", async () => {
   vi.stubGlobal("fetch", fetcher);
   const response = await POST(new Request("https://dwellcall.test/api/stripe/webhook", { method: "POST", body: "x".repeat(1_048_577) }));
   expect(response.status).toBe(413);
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
+beforeEach(() => vi.stubEnv("DWELLCALL_PLATFORM_EXTENSIONS_ENABLED", "true"));
+
+it("does not forward Stripe events when the product extension is parked", async () => {
+  vi.stubEnv("DWELLCALL_PLATFORM_EXTENSIONS_ENABLED", "false");
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  expect((await POST(new Request("https://dwellcall.test/api/stripe/webhook", { method: "POST", body: "{}" }))).status).toBe(404);
   expect(fetcher).not.toHaveBeenCalled();
 });

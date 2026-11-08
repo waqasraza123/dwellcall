@@ -1,3 +1,9 @@
+> Current product scope: [focused outbound agent](outbound-agent.md) and
+> [roadmap](roadmap.md). Qualification now concerns requested property needs and
+> follow-up permission. Platform lead sales, lead inbox/task management, billing,
+> listing discovery and browser conversations are parked extensions by default.
+> Historical setup notes below do not expand the active product boundary.
+
 # Outbound voice and platform lead qualification — UNVERIFIED
 
 Owner requested HVACLine outbound reuse, ElevenLabs as the default, optional Retell,

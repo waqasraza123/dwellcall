@@ -1,9 +1,11 @@
+import { platformExtensionsEnabled } from "@/lib/product-scope";
 import { backendOrigin } from "@/lib/backend";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export async function POST(request: Request): Promise<Response> {
   const headers = { "Cache-Control": "no-store" };
+  if (!platformExtensionsEnabled()) return new Response(null, { status: 404, headers });
   const reader = request.body?.getReader();
   if (!reader) return new Response(null, { status: 400, headers });
   const chunks: Uint8Array[] = [];

@@ -6,8 +6,8 @@ import { authenticated } from "@/lib/operator-session";
 import { operatorBackend } from "@/lib/backend";
 import { GET, POST } from "./route";
 const context = (path: string) => ({ params: Promise.resolve({ path: path.split("/") }) });
-beforeEach(() => { vi.mocked(authenticated).mockResolvedValue(true); });
-afterEach(() => vi.resetAllMocks());
+beforeEach(() => { vi.stubEnv("DWELLCALL_PLATFORM_EXTENSIONS_ENABLED", "true"); vi.mocked(authenticated).mockResolvedValue(true); });
+afterEach(() => { vi.resetAllMocks(); vi.unstubAllEnvs(); });
 describe("authenticated operational bridge", () => {
   it("requires auth before reading data or calling the backend", async () => {
     vi.mocked(authenticated).mockResolvedValue(false);

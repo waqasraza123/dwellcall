@@ -6,8 +6,8 @@ import { authenticated } from "@/lib/operator-session";
 import { operatorBackend } from "@/lib/backend";
 import { GET, POST } from "./route";
 const context = (path = "") => ({ params: Promise.resolve({ path: path ? path.split("/") : [] }) });
-beforeEach(() => { vi.mocked(authenticated).mockResolvedValue(true); });
-afterEach(() => vi.resetAllMocks());
+beforeEach(() => { vi.stubEnv("DWELLCALL_PLATFORM_EXTENSIONS_ENABLED", "true"); vi.mocked(authenticated).mockResolvedValue(true); });
+afterEach(() => { vi.resetAllMocks(); vi.unstubAllEnvs(); });
 describe("homepage conversation bridge adapted from HVACLine", () => {
   it("shows a sign-in state without contacting providers for an anonymous visitor", async () => {
     vi.mocked(authenticated).mockResolvedValue(false);
@@ -30,4 +30,9 @@ describe("homepage conversation bridge adapted from HVACLine", () => {
     expect(operatorBackend).toHaveBeenCalledWith("browser-conversations/sessions", "POST", "{}", undefined, owner);
     expect((await GET(new NextRequest("https://dwellcall.test/api/homepage-chat/outbound/calls"), context("outbound/calls"))).status).toBe(404);
   });
+});
+it("does not contact the browser conversation backend in the focused product", async () => {
+  vi.stubEnv("DWELLCALL_PLATFORM_EXTENSIONS_ENABLED", "false");
+  expect((await GET(new NextRequest("https://dwellcall.test/api/homepage-chat"), context())).status).toBe(404);
+  expect(operatorBackend).not.toHaveBeenCalled();
 });

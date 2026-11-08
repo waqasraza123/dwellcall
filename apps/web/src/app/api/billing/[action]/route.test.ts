@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 vi.mock("@/lib/account-session", () => ({ accountBackend: vi.fn() }));
 vi.mock("@/features/billing/server", () => ({ publicCatalog: vi.fn() }));
@@ -7,7 +7,8 @@ import { publicCatalog } from "@/features/billing/server";
 import { GET, POST } from "./route";
 const context = (action: string) => ({ params: Promise.resolve({ action }) });
 const request = (origin = "https://dwellcall.test") => new NextRequest("https://dwellcall.test/api/billing/checkout", { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ plan: "pro", request_id: "synthetic-request" }) });
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => { vi.resetAllMocks(); vi.stubEnv("DWELLCALL_PLATFORM_EXTENSIONS_ENABLED", "true"); });
+afterEach(() => vi.unstubAllEnvs());
 it("forwards billing through the account session without an admin credential", async () => {
   vi.mocked(accountBackend).mockResolvedValue(Response.json({ url: "https://checkout.stripe.com/synthetic" }));
   const response = await POST(request(), context("checkout"));
@@ -26,4 +27,10 @@ it("keeps pricing public and the remaining backend paths private", async () => {
   expect(accountBackend).not.toHaveBeenCalled();
   expect((await GET(new NextRequest("https://dwellcall.test/api/billing/checkout"), context("checkout"))).status).toBe(404);
   expect((await POST(request(), context("admin"))).status).toBe(404);
+});
+it("does not forward billing requests while extensions are disabled", async () => {
+  vi.stubEnv("DWELLCALL_PLATFORM_EXTENSIONS_ENABLED", "false");
+  expect((await POST(request(), context("checkout"))).status).toBe(404);
+  expect(accountBackend).not.toHaveBeenCalled();
+  expect(publicCatalog).not.toHaveBeenCalled();
 });

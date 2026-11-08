@@ -23,6 +23,7 @@ def isolate_settings_environment(monkeypatch: pytest.MonkeyPatch) -> None:
 def settings() -> ApiSettings:
     return ApiSettings(
         _env_file=None,
+        platform_extensions_enabled=True,
         app_environment="development",
         database_url="postgresql://synthetic:synthetic@localhost/dwellcall",
         retell_agent_id="agent_dwellcall_test",

@@ -19,6 +19,8 @@ def create_outbound_router(settings: ApiSettings, service: OutboundCallService) 
 
     @router.get("/leads")
     def leads() -> list[dict[str, object]]:
+        if not settings.platform_extensions_enabled:
+            raise ApiError(status_code=404, code="FEATURE_UNAVAILABLE", message="This extension is disabled")
         from datetime import UTC, datetime
         from sqlalchemy import select
         from dwellcall.database.models import OutboundCall

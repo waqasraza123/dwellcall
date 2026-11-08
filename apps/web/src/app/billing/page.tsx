@@ -1,3 +1,4 @@
+import { platformExtensionsEnabled } from "@/lib/product-scope";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Brand } from "@/components/brand";
@@ -10,6 +11,7 @@ import { SignOut } from "@/features/account/sign-out";
 export const metadata = { title: "Billing", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 export default async function BillingPage({ searchParams }: { searchParams: Promise<{ plan?: string | string[]; checkout?: string | string[] }> }) {
+  if (!platformExtensionsEnabled()) redirect("/calls");
   const params = await searchParams;
   const plan = parsePlanKey(params.plan);
   const account = await currentAccount();

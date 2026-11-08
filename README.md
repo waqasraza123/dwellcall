@@ -1,22 +1,34 @@
 # DwellCall
 
-**Know your market. Make every property conversation count.**
+**Requested outbound calls. Natural conversations. Clear results.**
 
-DwellCall helps real estate teams organize listings, understand agent relationships,
-and guide buyers and renters through natural AI conversations.
+DwellCall is a focused real-estate voice-agent showcase for prospective clients.
+An approved operator requests one consented callback, the AI asks about property
+needs and timing, and the workspace retains a transcript and evidence-based
+qualification summary when analysis is enabled.
 
-- **See the bigger picture.** Explore properties, agent connections and listing history in one workspace.
-- **Help people find their fit.** Discuss renting, buying and luxury homes, compare options and understand preferences.
-- **Connect your workflow.** Bring approved information into GoHighLevel, HubSpot or Follow Up Boss.
-- **Talk by phone.** Request a private AI demonstration call with the recipient’s permission.
+The core experience is a phone-demo homepage and `/calls`: request, progress,
+transcript, summary, recipient suppression and call history. ElevenLabs with Telnyx
+is the default voice path; Retell remains optional. OpenAI provides structured
+post-call analysis. Existing Neon persistence, account MFA, admission limits,
+idempotency and uncertain-call recovery support the workflow.
 
-Voice conversations powered by [Retell AI](https://www.retellai.com/) and [Telnyx](https://telnyx.com/).
+**Source implemented; runtime unverified.** Live calling and transcript analysis
+remain disabled until owner configuration and acceptance. The demo uses fictional
+property scenarios. There is no connected listing inventory or appointment booking.
+Human transfers are permanently disabled. No autonomous dialing or follow-up occurs.
+An active ElevenLabs SIP call currently requires carrier-side termination in Telnyx;
+the workspace exposes that limitation and retains unresolved reservations.
 
-<p>
-  <a href="https://www.retellai.com/"><img src="docs/assets/retell-ai.svg" alt="Retell AI" width="180" height="72" /></a>
-  <a href="https://telnyx.com/"><img src="docs/assets/telnyx.svg" alt="Telnyx" width="180" height="72" /></a>
-</p>
+Listing discovery, agent intelligence, CRM management, subscriptions, browser chat
+and follow-up task management are parked extensions. Their source and migrations
+remain available; their routes/UI are disabled by default. No stored data or
+migration history is removed.
 
-**In development.** Demonstrations use fictional properties. Live calling and integrations require setup and acceptance testing.
+- [Focused roadmap](docs/roadmap.md)
+- [Core setup and owner acceptance](docs/outbound-agent.md)
+- [Authentication and Neon setup](docs/authentication.md)
+- [Provider and transcript reference](docs/call-intelligence.md)
 
-[Stripe pricing and billing](docs/billing.md) · [Authentication and Neon setup](docs/authentication.md) · [Workspace guide](docs/phase-4.md) · [Calling guide](docs/outbound-calling.md)
+The next milestone is an accepted, repeatable phone demonstration and a short
+portfolio case study. Add integrations and capacity only for demonstrated client needs.

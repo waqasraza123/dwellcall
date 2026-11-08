@@ -109,6 +109,7 @@ class DatabaseConnectionSettings(CommonSettings):
 
 
 class ApiSettings(OutboundSettings, DatabaseConnectionSettings):
+    platform_extensions_enabled: bool = False
     billing_enabled: bool = False
     stripe_secret_key: SecretStr | None = None
     stripe_webhook_secret: SecretStr | None = None

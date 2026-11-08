@@ -88,7 +88,7 @@ export function OutboundDemoDialog({ children }: { children: ReactNode }) {
   const [locked, setLocked] = useState(false);
   const [call, setCall] = useState<DemoCall | null>(null);
   const [message, setMessage] = useState(
-    "Phone demos aren’t available right now. You can explore the form or try Dwell in your browser.",
+    "Phone demos aren’t available right now. An approved operator can finish setup in the call workspace.",
   );
   const requestId = useRef<string | null>(null);
   const submitting = useRef(false);
@@ -127,7 +127,7 @@ export function OutboundDemoDialog({ children }: { children: ReactNode }) {
         setMessage(
           data.available
             ? "One-time AI demo · eligible numbers only · up to three minutes."
-            : "Phone demos aren’t available right now. You can explore the form or try Dwell in your browser.",
+            : "Phone demos aren’t available right now. An approved operator can finish setup in the call workspace.",
         );
     } catch {
       if (version === availabilityVersion.current) setAuthentication("unavailable");
@@ -659,8 +659,8 @@ export function OutboundDemoDialog({ children }: { children: ReactNode }) {
                   )}
                 </div>
               )}
-              <Link className="outbound-demo-browser" href="/#try-dwellcall">
-                Prefer your browser? Try Voice <span aria-hidden="true">↗</span>
+              <Link className="outbound-demo-browser" href="/calls">
+                Open the operator call workspace <span aria-hidden="true">↗</span>
               </Link>
             </div>
           </Dialog.Content>

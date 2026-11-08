@@ -1,11 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 vi.mock("@/lib/account-session", () => ({ currentAccount: vi.fn(), accountBackend: vi.fn() }));
 import { currentAccount, accountBackend } from "@/lib/account-session";
 import { GET, POST } from "./route";
 const id = "11111111-1111-4111-8111-111111111111";
 const context = (path: string[]) => ({ params: Promise.resolve({ path }) });
-beforeEach(() => {
+beforeEach(() => { vi.stubEnv("DWELLCALL_PLATFORM_EXTENSIONS_ENABLED", "true");
   vi.resetAllMocks();
   vi.mocked(currentAccount).mockResolvedValue({ status: "authenticated", user: { id, full_name: "Synthetic", email: "synthetic@example.test", operator_access: true } });
 });
@@ -35,4 +35,11 @@ describe("account-authenticated lead reviews", () => {
     expect((await GET(new NextRequest("https://dwellcall.test/api/call-leads/tasks?status=../calls"), context(["tasks"]))).status).toBe(422);
     expect(accountBackend).not.toHaveBeenCalled();
   });
+});
+
+afterEach(() => vi.unstubAllEnvs());
+it("parks task-management endpoints outside the focused product", async () => {
+  vi.stubEnv("DWELLCALL_PLATFORM_EXTENSIONS_ENABLED", "false");
+  expect((await GET(new NextRequest("https://dwellcall.test/api/call-leads/tasks"), context(["tasks"]))).status).toBe(404);
+  expect(accountBackend).not.toHaveBeenCalled();
 });

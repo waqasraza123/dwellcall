@@ -172,7 +172,7 @@ def create_retell_router(
                     return
                 if phone and call_purpose == "qualification":
                     async with asyncio.timeout(25):
-                        reply = await consultant.qualify(event.transcript, intelligence_consent)
+                        reply = await consultant.qualify(event.transcript, intelligence_consent, scenario)
                     if event.response_id == last_response_id:
                         await send(Response(response_id=event.response_id, content=reply.content, content_complete=True, end_call=reply.end_call))
                     return
@@ -219,7 +219,7 @@ def create_retell_router(
                 conversation.requirements = PropertyRequirements.model_validate({"scenario": scenario})
                 remaining = await run_in_threadpool(outbound.remaining_seconds, audio_id)
             else:
-                if not settings.retell_test_audio_enabled:
+                if not (settings.platform_extensions_enabled and settings.retell_test_audio_enabled):
                     raise ApiError(status_code=403, code="WEB_CALL_DISABLED", message="Web calls are disabled")
                 if browser_call:
                     if browser is None:
@@ -246,7 +246,7 @@ def create_retell_router(
             await websocket.send_json(ConfigResponse().model_dump())
             await send(Response(
                 response_id=0,
-                content=("Hi, I am DwellCall’s AI assistant, calling for the platform conversation you requested. " + ("The transcript is saved and analyzed with OpenAI to assess follow-up interest. " if intelligence_consent else "") + "Is now a good time?") if phone and call_purpose == "qualification" else consultant.greeting(scenario) if phone or browser_call else consultant.greeting(),
+                content=("Hi, I am DwellCall’s AI assistant, calling for the property follow-up you requested. " + ("The transcript is saved and analyzed with OpenAI to assess follow-up interest. " if intelligence_consent else "") + "Is now a good time?") if phone and call_purpose == "qualification" else consultant.greeting(scenario) if phone or browser_call else consultant.greeting(),
                 content_complete=True,
             ))
             try:

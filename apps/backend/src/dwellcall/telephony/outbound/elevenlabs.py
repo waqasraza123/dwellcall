@@ -110,7 +110,7 @@ class ElevenLabsOutboundProvider:
                     "dwellcall_outbound_id": call_id, "authorization": request_hash,
                     "demo_scenario": data.scenario, "call_purpose": data.call_purpose,
                     "transcript_analysis_enabled": self.settings.outbound_intelligence_enabled,
-                    "qualification_criteria": self.settings.outbound_qualification_criteria or "Explore explicit platform needs and interest.", "demo_transfer_enabled": False,
+                    "qualification_criteria": self.settings.outbound_qualification_criteria or "Explore stated property needs, timing and explicit permission for further contact.", "demo_transfer_enabled": False,
                     "demo_max_duration_seconds": self.settings.outbound_max_duration_seconds,
                 }},
             })

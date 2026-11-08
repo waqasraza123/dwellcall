@@ -1,3 +1,4 @@
+import { platformExtensionsEnabled } from "@/lib/product-scope";
 import { NextRequest } from "next/server";
 import { authenticated } from "@/lib/operator-session";
 import { BackendError, operatorBackend } from "@/lib/backend";
@@ -10,7 +11,7 @@ async function handle(request: NextRequest, context: Context) {
   try {
     if (!await authenticated()) throw new BackendError(401, "Sign in to open this workspace.");
     const path = (await context.params).path.join("/");
-    if (!bridgeAllowed(request.method, path)) throw new BackendError(404, "This action is unavailable.");
+    if (!bridgeAllowed(request.method, path, platformExtensionsEnabled())) throw new BackendError(404, "This action is unavailable.");
     let body: string | undefined; let key: string | undefined;
     if (request.method !== "GET") {
       requireSameOrigin(request); key = request.headers.get("Idempotency-Key") ?? "";

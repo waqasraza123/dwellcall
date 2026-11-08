@@ -14,7 +14,7 @@ function isIntelligence(value: unknown): value is Intelligence {
   const a = v.assessment as Record<string, unknown>;
   return ["disposition", "summary", "next_step"].every(k => typeof a[k] === "string") && typeof a.follow_up_permission === "boolean" && ["needs", "evidence_quotes", "unanswered_questions"].every(k => Array.isArray(a[k]) && a[k].every((s: unknown) => typeof s === "string"));
 }
-export function CallIntelligencePanel({ callId, terminal }: { callId: string; terminal: boolean }) {
+export function CallIntelligencePanel({ callId, terminal, extensionsEnabled = false }: { callId: string; terminal: boolean; extensionsEnabled?: boolean }) {
   const [data, setData] = useState<Intelligence | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,10 +34,10 @@ export function CallIntelligencePanel({ callId, terminal }: { callId: string; te
   }
   const assessment = data?.assessment;
   return <section className="ops-card" aria-busy={busy}><h2>Transcript &amp; lead qualification</h2><p>Analysis: {data?.status.replaceAll("_", " ") ?? "Loading…"}. Suggestions require operator review before further contact.</p>{error && <p role="alert">{error}</p>}
-    {assessment && <><h3>{assessment.disposition.replaceAll("_", " ")}</h3><p>{assessment.summary}</p><dl className="facts"><div><dt>Follow-up permission</dt><dd>{assessment.follow_up_permission ? "Expressed in this call; review evidence" : "Not established"}</dd></div><div><dt>Timing</dt><dd>{assessment.timing ?? "Unknown"}</dd></div><div><dt>CRM</dt><dd>{assessment.crm ?? "Unknown"}</dd></div></dl><p>{assessment.next_step}</p>{assessment.permission_quote && <blockquote>{assessment.permission_quote}</blockquote>}{assessment.needs.length > 0 && <><h4>Needs</h4><ul>{assessment.needs.map((s,i) => <li key={i}>{s}</li>)}</ul></>}{assessment.evidence_quotes.map((s,i) => <blockquote key={i}>{s}</blockquote>)}{assessment.unanswered_questions.length > 0 && <><h4>Questions for the next conversation</h4><ul>{assessment.unanswered_questions.map((s,i) => <li key={i}>{s}</li>)}</ul></>}</>}
+    {assessment && <><h3>{assessment.disposition.replaceAll("_", " ")}</h3><p>{assessment.summary}</p><dl className="facts"><div><dt>Follow-up permission</dt><dd>{assessment.follow_up_permission ? "Expressed in this call; review evidence" : "Not established"}</dd></div><div><dt>Timing</dt><dd>{assessment.timing ?? "Unknown"}</dd></div>{extensionsEnabled && <div><dt>CRM mentioned</dt><dd>{assessment.crm ?? "Unknown"}</dd></div>}</dl><p>{assessment.next_step}</p>{assessment.permission_quote && <blockquote>{assessment.permission_quote}</blockquote>}{assessment.needs.length > 0 && <><h4>Needs</h4><ul>{assessment.needs.map((s,i) => <li key={i}>{s}</li>)}</ul></>}{assessment.evidence_quotes.map((s,i) => <blockquote key={i}>{s}</blockquote>)}{assessment.unanswered_questions.length > 0 && <><h4>Questions for the next conversation</h4><ul>{assessment.unanswered_questions.map((s,i) => <li key={i}>{s}</li>)}</ul></>}</>}
     <div className="actions"><button disabled={busy} onClick={() => void load(false)}>Refresh analysis</button>{data && ["pending", "failed", "processing"].includes(data.status) && <button disabled={busy || !terminal} onClick={() => void load(true)}>Analyze retained transcript</button>}</div>
     {data?.transcript.length ? <details><summary>Read transcript</summary>{data.transcript.map((turn,i) => <p key={i}><strong>{turn.role === "agent" ? "DwellCall" : "Recipient"}:</strong> {turn.text}</p>)}</details> : <p>No retained transcript is available.</p>}
     {data?.expires_at && <p className="muted">Transcript access expires {new Date(data.expires_at).toLocaleDateString()}.</p>}
-    <LeadReviewPanel key={callId} callId={callId}/>
+    {extensionsEnabled && <LeadReviewPanel key={callId} callId={callId}/>}
   </section>;
 }

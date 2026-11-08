@@ -1,3 +1,48 @@
+# Current mission — focused outbound voice agent — 2026-11-08
+
+Owner replaces the broad listing-intelligence/SaaS objective with a focused,
+functional outbound voice-agent showcase for Upwork, expandable when client needs
+justify it. This supersedes earlier platform-growth/roadmap priorities below.
+
+## Focused source refactor — UNVERIFIED
+
+- Default product is a phone-demo homepage and `/calls`: deliberate requested
+  property callback, progress/history, encrypted transcript and evidence-based
+  qualification summary. ElevenLabs/Telnyx is primary; Retell stays optional.
+- Qualification now gathers stated property needs/timing/follow-up permission,
+  rather than selling DwellCall subscriptions. Exact ElevenLabs prompt preflight
+  requires owner republishing the updated prompt; no provider changes were made.
+- Backend PLATFORM_EXTENSIONS_ENABLED and frontend
+  DWELLCALL_PLATFORM_EXTENSIONS_ENABLED default false. Listing discovery, agent
+  intelligence, CRM administration, Stripe routes, browser chat and lead/task
+  management are parked behind explicit opt-in and retain their existing gates.
+- Homepage/pricing navigation, branding, account landing and workspace reflect the
+  outbound scope. Old /dashboard redirects to /calls; other parked workspace routes
+  are unavailable by default. Core call security/consent/recovery remain intact.
+- Existing source, migration history, stored data and suppression preserved.
+  No new migration/dependency. No automatic calling, capacity increase, tenancy,
+  scheduler, appointments or CRM writes added. ElevenLabs operator stop still
+  requires carrier-side termination; UI and acceptance guide state that limitation.
+- Owner authorizes publishing the focused refactor and roadmap to main with
+  verification hooks disabled. No verification, installs, migrations, services,
+  provider calls or deployment commands ran. Source remains UNVERIFIED.
+- Current roadmap and owner commands: docs/roadmap.md and docs/outbound-agent.md.
+  Next priority is owner acceptance of one complete call, then portfolio packaging;
+  one integration and later capacity work follow measured client requirements.
+
+## Historical milestones
+
+Earlier records below describe prior scope and publication; they do not override
+this focused mission or establish runtime acceptance.
+
+## Configurable Stripe product published — 2026-11-08
+
+- Owner-authorized commit 8930d97 pushed to origin/main; GitHub accepted
+  bb11747..8930d97. Includes 11 source/example/guide/specification/memory files.
+- Hooks disabled; no tests, builds, checks, installs, migrations, services,
+  Stripe requests/configuration changes or deployment commands ran. Implementation
+  remains UNVERIFIED. Owner acceptance commands: docs/billing.md.
+
 ## Configurable Stripe product publication authorized — 2026-11-08
 
 - Owner authorizes pushing the pending configurable Stripe product source,

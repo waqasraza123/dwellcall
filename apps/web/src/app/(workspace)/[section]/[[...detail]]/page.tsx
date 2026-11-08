@@ -1,5 +1,6 @@
+import { platformExtensionsEnabled } from "@/lib/product-scope";
 import { Suspense } from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Dashboard } from "@/features/intelligence/dashboard";
 import { Agents, AgentDetail, Listings, ListingDetail } from "@/features/intelligence/listings";
 import { Discovery } from "@/features/intelligence/discovery";
@@ -11,9 +12,14 @@ const labels: Record<string, string> = { dashboard: "Overview", listings: "Prope
 export async function generateMetadata({ params }: { params: Promise<{ section: string }> }) { const { section } = await params; return { title: labels[section] ?? "Workspace", robots: { index: false, follow: false } }; }
 export default async function WorkspacePage({ params }: { params: Promise<{ section: string; detail?: string[] }> }) {
   const { section, detail } = await params;
+  const extensionsEnabled = platformExtensionsEnabled();
+  if (!extensionsEnabled && section !== "calls") {
+    if (section === "dashboard" && !detail?.length) redirect("/calls");
+    notFound();
+  }
   if (!Object.hasOwn(labels, section) || (detail?.length ?? 0) > 1) notFound();
   const id = detail?.[0];
   if (id && (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id) || !["listings", "agents", "reviews"].includes(section))) notFound();
-  const content = section === "dashboard" ? <Dashboard/> : section === "listings" ? id ? <ListingDetail id={id}/> : <Listings/> : section === "agents" ? id ? <AgentDetail id={id}/> : <Agents/> : section === "discovery" ? <Discovery/> : section === "reviews" ? id ? <ReviewDetail id={id}/> : <Reviews/> : section === "crm" ? <Crm/> : section === "calls" ? <OutboundCalls/> : <Activity/>;
+  const content = section === "dashboard" ? <Dashboard/> : section === "listings" ? id ? <ListingDetail id={id}/> : <Listings/> : section === "agents" ? id ? <AgentDetail id={id}/> : <Agents/> : section === "discovery" ? <Discovery/> : section === "reviews" ? id ? <ReviewDetail id={id}/> : <Reviews/> : section === "crm" ? <Crm/> : section === "calls" ? <OutboundCalls extensionsEnabled={extensionsEnabled}/> : <Activity/>;
   return <Suspense fallback={<p role="status" className="notice">Loading workspace…</p>}>{content}</Suspense>;
 }

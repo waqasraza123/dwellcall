@@ -1,3 +1,4 @@
+import { platformExtensionsEnabled } from "@/lib/product-scope";
 import { NextRequest } from "next/server";
 import { accountBackend, currentAccount } from "@/lib/account-session";
 import { BackendError } from "@/lib/backend";
@@ -8,6 +9,7 @@ export const runtime = "nodejs";
 type Context = { params: Promise<{ path?: string[] }> };
 async function handle(request: NextRequest, context: Context) {
   try {
+    if (!platformExtensionsEnabled()) throw new BackendError(404, "This extension is disabled.");
     if (request.headers.get("sec-fetch-site") === "cross-site") throw new BackendError(403, "Use this workspace on DwellCall.");
     if (request.method !== "GET") requireSameOrigin(request);
     const account = await currentAccount();

@@ -25,7 +25,7 @@ MESSAGES = {
     "dialing": "The provider accepted the request. Answering has not been confirmed.",
     "ringing": "The provider reports ringing. Answering has not been confirmed.",
     "in_progress": "The AI conversation is in progress.",
-    "completed": "The call ended. No follow-up or appointment was arranged.",
+    "completed": "The call ended. Review the transcript and qualification summary before any next action.",
     "rejected": "The recipient was busy or declined. No automatic redial will occur.",
     "unanswered": "The call was not answered. No automatic redial will occur.",
     "failed": "The call could not be completed. No automatic redial will occur.",

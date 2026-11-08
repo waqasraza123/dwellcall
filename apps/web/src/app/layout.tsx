@@ -4,15 +4,15 @@ import "./styles.css";
 import "@/features/outbound-demo/outbound-demo.css";
 export const metadata: Metadata = {
   title: {
-    default: "DwellCall | AI Real Estate Lead Intelligence",
+    default: "DwellCall | Outbound AI Voice Agent",
     template: "%s | DwellCall",
   },
   description:
-    "Find new listings. Identify the agents. Build your pipeline.",
+    "Requested property follow-up calls, natural AI conversations and clear qualification summaries.",
   openGraph: {
-    title: "DwellCall | AI Real Estate Lead Intelligence",
+    title: "DwellCall | Outbound AI Voice Agent",
     description:
-      "Find new listings. Identify the agents. Build your pipeline.",
+      "Requested property follow-up calls, natural AI conversations and clear qualification summaries.",
     type: "website",
   },
   icons: {

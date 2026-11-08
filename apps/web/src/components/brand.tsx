@@ -1,6 +1,6 @@
 import Link from "next/link";
 export function Brand() {
-  return <Link aria-label="DwellCall home" className="brand-link" href="/"><svg aria-hidden="true" width="36" height="36" viewBox="0 0 36 36"><rect width="36" height="36" rx="8" fill="var(--ink)"/><path d="m8 17 10-8 10 8M11 15v12h14V15M16 27v-8h5v8" fill="none" stroke="var(--bronze-light)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg><span>Dwell<span className="brand-line">Call</span><small>REAL ESTATE INTELLIGENCE</small></span></Link>;
+  return <Link aria-label="DwellCall home" className="brand-link" href="/"><svg aria-hidden="true" width="36" height="36" viewBox="0 0 36 36"><rect width="36" height="36" rx="8" fill="var(--ink)"/><path d="m8 17 10-8 10 8M11 15v12h14V15M16 27v-8h5v8" fill="none" stroke="var(--bronze-light)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg><span>Dwell<span className="brand-line">Call</span><small>OUTBOUND VOICE AGENT</small></span></Link>;
 }
 export function GitHubLink() {
   if (process.env.DWELLCALL_GITHUB_LINK_ENABLED === "false") return null;

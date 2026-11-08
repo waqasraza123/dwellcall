@@ -1,3 +1,4 @@
+import { platformExtensionsEnabled } from "@/lib/product-scope";
 import { NextRequest, NextResponse } from "next/server";
 import { accountBackend } from "@/lib/account-session";
 import { BackendError } from "@/lib/backend";
@@ -9,6 +10,7 @@ export const runtime = "nodejs";
 type Context = { params: Promise<{ action: string }> };
 async function handle(request: NextRequest, context: Context) {
   try {
+    if (!platformExtensionsEnabled()) throw new BackendError(404, "This extension is disabled.");
     const { action } = await context.params;
     const allowed = request.method === "GET" ? ["plans", "status"] : ["checkout", "portal", "refresh"];
     if (!allowed.includes(action)) throw new BackendError(404, "This billing action is unavailable.");

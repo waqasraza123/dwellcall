@@ -27,7 +27,8 @@ const postPaths = [
   new RegExp(`^crm/(ghl|hubspot)/jobs/${id}/(retry|reconcile)$`),
   new RegExp(`^crm/(ghl|hubspot)/agents/${id}/bind$`),
 ];
-export function bridgeAllowed(method: string, path: string): boolean {
+export function bridgeAllowed(method: string, path: string, extensionsEnabled = false): boolean {
+  if (!extensionsEnabled && (!path.startsWith("outbound/") || path === "outbound/leads")) return false;
   if (path.includes("..") || path.includes("%") || path.includes("\\")) return false;
   return method === "GET" ? getPaths.some(p => p.test(path)) : method === "POST" ? postPaths.some(p => p.test(path)) : method === "PUT" && (new RegExp(`^intelligence/workspace/jobs/${id}$`).test(path) || new RegExp(`^intelligence/sources/${source}$`).test(path));
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { bridgeAllowed } from "./bridge-policy";
+import { bridgeAllowed as scopedBridgeAllowed } from "./bridge-policy";
+const bridgeAllowed = (method: string, path: string) => scopedBridgeAllowed(method, path, true);
 const id = "11111111-1111-4111-8111-111111111111";
 describe("operator bridge capability boundary", () => {
   it("allows the implemented reads and deliberate writes", () => {
@@ -39,4 +40,14 @@ it("exposes only authenticated outbound operations, never campaign or Telnyx ori
   expect(bridgeAllowed("GET", "outbound/preflight")).toBe(false);
   expect(bridgeAllowed("POST", "outbound/campaigns")).toBe(false);
   expect(bridgeAllowed("POST", "telnyx/calls")).toBe(false);
+});
+
+it("keeps the default workspace restricted to outbound calls and per-call results", () => {
+  expect(scopedBridgeAllowed("GET", "outbound/calls")).toBe(true);
+  expect(scopedBridgeAllowed("GET", `outbound/calls/${id}/intelligence`)).toBe(true);
+  expect(scopedBridgeAllowed("POST", `outbound/calls/${id}/refresh`)).toBe(true);
+  for (const path of ["outbound/leads", "crm/providers", "intelligence/workspace/dashboard", "intelligence/listings"]) {
+    expect(scopedBridgeAllowed("GET", path)).toBe(false);
+  }
+  expect(scopedBridgeAllowed("POST", "crm/ghl/jobs/process")).toBe(false);
 });
